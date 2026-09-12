@@ -1206,25 +1206,25 @@
         <div class="field-row">
           <div class="field">
             <label>Марка</label>
-            <input id="car-make" placeholder="BMW" oninput="onMakeModelInput()" />
+            <input id="car-make" placeholder="BMW" oninput="onMakeModelInput(); liveUpdateCard()" />
           </div>
           <div class="field">
             <label>Модель</label>
-            <input id="car-model" placeholder="X3" oninput="onMakeModelInput()" />
+            <input id="car-model" placeholder="X3" oninput="onMakeModelInput(); liveUpdateCard()" />
           </div>
         </div>
         <div class="field-row-3">
           <div class="field">
             <label>Рік</label>
-            <input id="car-year" type="number" placeholder="2021" min="1990" max="2026" oninput="onYearInput()" />
+            <input id="car-year" type="number" placeholder="2021" min="1990" max="2026" oninput="onYearInput(); liveUpdateCard()" />
           </div>
           <div class="field">
             <label>Об'єм двигуна (л)</label>
-            <input id="car-engine" type="number" step="0.1" placeholder="2.0" />
+            <input id="car-engine" type="number" step="0.1" placeholder="2.0" oninput="liveUpdateCard()" />
           </div>
           <div class="field">
             <label>Тип палива</label>
-            <select id="car-fuel">
+            <select id="car-fuel" onchange="liveUpdateCard()">
               <option value="">—</option>
               <option value="petrol">Бензин</option>
               <option value="diesel">Дизель</option>
@@ -1238,7 +1238,7 @@
         <div class="field-row">
           <div class="field">
             <label>Тип кузову</label>
-            <select id="car-body">
+            <select id="car-body" onchange="liveUpdateCard()">
               <option value="">—</option>
               <option value="SUV">SUV</option>
               <option value="Sedan">Sedan</option>
@@ -1253,7 +1253,7 @@
           </div>
           <div class="field">
             <label>Трансмісія</label>
-            <select id="car-transmission">
+            <select id="car-transmission" onchange="liveUpdateCard()">
               <option value="">—</option>
               <option value="Механіка">Механіка</option>
               <option value="Автомат">Автомат</option>
@@ -1265,7 +1265,7 @@
         <div class="field-row">
           <div class="field">
             <label>Тип приводу</label>
-            <select id="car-drive">
+            <select id="car-drive" onchange="liveUpdateCard()">
               <option value="">—</option>
               <option value="FWD">FWD (Передній)</option>
               <option value="RWD">RWD (Задній)</option>
@@ -1275,7 +1275,7 @@
           </div>
           <div class="field">
             <label>Країна виробництва</label>
-            <select id="car-country">
+            <select id="car-country" onchange="liveUpdateCard()">
               <option value="">—</option>
               <option value="🇩🇪 Німеччина">🇩🇪 Німеччина</option>
               <option value="🇯🇵 Японія">🇯🇵 Японія</option>
@@ -1339,7 +1339,7 @@
           </div>
           <div class="field">
             <label>Номерний знак</label>
-            <input id="car-plate" placeholder="AA 1234 BB" style="font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:0.05em;" oninput="this.value=this.value.toUpperCase()" />
+            <input id="car-plate" placeholder="AA 1234 BB" style="font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:0.05em;" oninput="this.value=this.value.toUpperCase(); liveUpdateCard()" />
           </div>
         </div>
         <div class="field">
@@ -2060,6 +2060,59 @@ async function loadCarPhoto(make, model, year) {
 
 function handlePhotoLoad() { document.getElementById('car-photo-placeholder').style.display='none'; }
 function handlePhotoError() { document.getElementById('car-photo-img').style.display='none'; document.getElementById('car-photo-placeholder').style.display='flex'; }
+
+// ── Живе оновлення карточки при зміні полів ──
+function liveUpdateCard() {
+  const make  = document.getElementById('car-make')?.value.trim();
+  const model = document.getElementById('car-model')?.value.trim();
+  if (!make || !model) return;
+
+  const card = document.getElementById('car-card');
+  if (!card?.classList.contains('visible')) card?.classList.add('visible');
+
+  const year    = document.getElementById('car-year')?.value || '';
+  const engine  = document.getElementById('car-engine')?.value || '';
+  const fuel    = document.getElementById('car-fuel')?.value || '';
+  const body    = document.getElementById('car-body')?.value || '';
+  const tx      = document.getElementById('car-transmission')?.value || '';
+  const drive   = document.getElementById('car-drive')?.value || '';
+  const country = document.getElementById('car-country')?.value || '';
+  const plate   = document.getElementById('car-plate')?.value.trim() || '';
+  const genCode = document.getElementById('car-generation')?.value || '';
+
+  // Назва і рік
+  document.getElementById('car-card-name').textContent =
+    `${make} ${model}${genCode ? ' · ' + genCode : ''}`;
+  document.getElementById('car-year-badge').textContent = year || '—';
+
+  const fuelMap = {petrol:'Бензин',diesel:'Дизель',lpg:'Газ (LPG)',lpg_petrol:'Газ + Бензин',hybrid:'Гібрид',electric:'Електро'};
+
+  // Specs grid
+  const grid = document.getElementById('car-specs-grid');
+  if (grid) {
+    grid.innerHTML = [
+      {label:'Кузов',      value: body    || '—'},
+      {label:'Трансмісія', value: tx      || '—', accent: !!tx},
+      {label:'Привід',     value: drive   || '—'},
+      {label:'Двигун',     value: engine  ? `${engine} л` : '—'},
+      {label:'Пальне',     value: fuelMap[fuel] || fuel || '—'},
+      {label:'Країна',     value: country || '—'},
+    ].map(s=>`<div class="car-spec"><div class="car-spec-label">${s.label}</div><div class="car-spec-value${s.accent?' accent':''}">${s.value}</div></div>`).join('');
+  }
+
+  // Бейджі
+  const genWrap = document.getElementById('car-generation-wrap');
+  if (genWrap) {
+    const vin = document.getElementById('vin')?.value.trim();
+    const vinBadge = vin?.length === 17
+      ? `<div class="car-generation-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>VIN: ${vin}</div>` : '';
+    const plateBadge = plate
+      ? `<div class="car-generation-badge" style="font-family:'JetBrains Mono',monospace;letter-spacing:0.08em;border-color:rgba(46,204,138,0.3);color:var(--success);background:rgba(46,204,138,0.08);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="6" width="22" height="12" rx="3"/><line x1="7" y1="6" x2="7" y2="18"/><line x1="17" y1="6" x2="17" y2="18"/></svg>${plate}</div>` : '';
+    const genBadge = genCode
+      ? `<div class="car-generation-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${genCode}</div>` : '';
+    genWrap.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${genBadge}${vinBadge}${plateBadge}</div>`;
+  }
+}
 
 // ── Manual preview ──
 function previewManualCar() {
