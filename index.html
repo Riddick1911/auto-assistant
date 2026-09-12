@@ -677,7 +677,134 @@
   }
   .checkbox-label input:checked ~ span:last-child { color: var(--success); }
 
-  /* ── Responsive ── */
+  /* ── Dashboard ── */
+  .dash-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 24px 0 10px;
+  }
+
+  .dash-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+
+  .dash-item.status-ok      { border-left: 3px solid var(--success); }
+  .dash-item.status-warning { border-left: 3px solid var(--warning); }
+  .dash-item.status-danger  { border-left: 3px solid var(--danger);  }
+  .dash-item.status-unknown { border-left: 3px solid var(--border-light); }
+
+  .dash-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .dash-item-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dash-item-label .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-ok    .status-dot { background: var(--success); }
+  .status-warning .status-dot { background: var(--warning); }
+  .status-danger  .status-dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .status-unknown .status-dot { background: var(--border-light); }
+
+  .dash-item-right {
+    text-align: right;
+  }
+
+  .dash-item-km {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .dash-item-km.ok      { color: var(--success); }
+  .dash-item-km.warning { color: var(--warning); }
+  .dash-item-km.danger  { color: var(--danger); }
+  .dash-item-km.unknown { color: var(--text-dim); }
+
+  .dash-item-date {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Progress bar */
+  .dash-progress-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .dash-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .dash-progress-fill.ok      { background: var(--success); }
+  .dash-progress-fill.warning { background: var(--warning); }
+  .dash-progress-fill.danger  { background: var(--danger); }
+  .dash-progress-fill.unknown { background: var(--border-light); }
+
+  .dash-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 5px;
+  }
+
+  /* Alert banner */
+  .dash-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(224,82,82,0.1);
+    border: 1px solid rgba(224,82,82,0.3);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .dash-alert.warning {
+    background: rgba(245,166,35,0.1);
+    border-color: rgba(245,166,35,0.3);
+  }
+
+  .dash-alert-icon { font-size: 18px; flex-shrink:0; margin-top:1px; }
+  .dash-alert-text { color: var(--text); line-height: 1.5; }
+  .dash-alert-text strong { display:block; margin-bottom:2px; }
+
+  /* No data state */
+  .dash-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .dash-empty-icon { font-size: 40px; margin-bottom: 12px; filter: grayscale(1) opacity(0.4); }
+  .dash-empty-text { font-size: 14px; margin-bottom: 16px; }
+
+
   @media (max-width: 720px) {
     .shell { grid-template-columns: 1fr; }
     .sidebar {
@@ -716,6 +843,12 @@
           <rect x="2" y="7" width="20" height="12" rx="3"/><path d="M6 7l2-4h8l2 4"/><circle cx="7" cy="16" r="1.5" fill="currentColor"/><circle cx="17" cy="16" r="1.5" fill="currentColor"/>
         </svg>
         Профіль авто
+      </div>
+      <div class="nav-item" onclick="goto('dash')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="7" height="9" rx="1.5"/><rect x="13" y="3" width="9" height="5" rx="1.5"/><rect x="13" y="12" width="9" height="9" rx="1.5"/><rect x="2" y="16" width="7" height="5" rx="1.5"/>
+        </svg>
+        Стан авто
       </div>
       <div class="nav-item" onclick="goto('maint')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -906,6 +1039,38 @@
       <div class="status-bar" id="car-status"></div>
     </div>
 
+
+    <!-- PAGE DASH: Dashboard -->
+    <div class="page" id="page-dash">
+      <div class="page-header">
+        <div class="page-title">Стан авто</div>
+        <div class="page-sub" id="dash-sub">Актуальний стан регламентних робіт</div>
+      </div>
+
+      <!-- Mileage update block -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-title">Поточний пробіг</div>
+        <div style="display:flex; gap:12px; align-items:flex-end;">
+          <div class="field" style="flex:1; margin:0;">
+            <label>Введіть актуальний пробіг (км)</label>
+            <input id="dash-mileage" type="number" placeholder="87500"
+              style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:600;"
+              onkeydown="if(event.key==='Enter') updateDashMileage()" />
+          </div>
+          <button class="btn btn-primary" onclick="updateDashMileage()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Оновити
+          </button>
+        </div>
+        <div id="dash-mileage-hint" style="font-size:12px; color:var(--text-dim); margin-top:8px;"></div>
+      </div>
+
+      <!-- Alert banner (shown when something is overdue/critical) -->
+      <div id="dash-alerts" style="margin-bottom:16px;"></div>
+
+      <!-- Progress bars grid -->
+      <div id="dash-grid"></div>
+    </div>
 
     <!-- PAGE 2: Maintenance -->
     <div class="page" id="page-maint">
@@ -1109,9 +1274,10 @@ function goto(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  const idx = ['car','maint','scan','settings'].indexOf(page);
+  const idx = ['car','dash','maint','scan','settings'].indexOf(page);
   document.querySelectorAll('.nav-item')[idx].classList.add('active');
   if (page === 'maint') renderMaintList();
+  if (page === 'dash') renderDashboard();
 }
 
 // ══════════════════════════════════════════════
@@ -1855,7 +2021,208 @@ function saveKey(inputId, storageKey) {
 }
 
 // ══════════════════════════════════════════════
-// LocalStorage persistence — зберігає ВСЕ назавжди
+// Dashboard — стан регламентних робіт
+// ══════════════════════════════════════════════
+
+// Інтервали заміни (км / дні) для кожного типу роботи
+const MAINT_INTERVALS = {
+  engine_oil:   { km: 10000, days: 365,  label: 'Моторна олива' },
+  oil_filter:   { km: 10000, days: 365,  label: 'Масляний фільтр' },
+  air_filter:   { km: 25000, days: 730,  label: 'Повітряний фільтр' },
+  cabin_filter: { km: 20000, days: 365,  label: 'Фільтр салону' },
+  fuel_filter:  { km: 30000, days: 730,  label: 'Паливний фільтр' },
+  brake_fluid:  { km: 40000, days: 730,  label: 'Гальмівна рідина' },
+  coolant:      { km: 60000, days: 1460, label: 'Антифриз' },
+  gearbox_oil:  { km: 60000, days: 1460, label: 'Олива КПП' },
+  brake_pads_f: { km: 40000, days: null, label: 'Гальм. колодки (пер.)' },
+  brake_pads_r: { km: 60000, days: null, label: 'Гальм. колодки (зад.)' },
+  timing_belt:  { km: 80000, days: 1825, label: 'Ремінь/ланцюг ГРМ' },
+  spark_plugs:  { km: 45000, days: 1460, label: 'Свічки запалювання' },
+};
+
+const MAINT_GROUPS = [
+  { label: 'Масла та фільтри', ids: ['engine_oil','oil_filter','air_filter','cabin_filter','fuel_filter'] },
+  { label: 'Технічні рідини',  ids: ['brake_fluid','coolant','gearbox_oil'] },
+  { label: 'Гальма та двигун', ids: ['brake_pads_f','brake_pads_r','timing_belt','spark_plugs'] },
+];
+
+function updateDashMileage() {
+  const val = document.getElementById('dash-mileage').value;
+  if (!val || isNaN(val)) return;
+  const km = parseInt(val);
+
+  // Update main mileage field and S.car
+  document.getElementById('car-mileage').value = km;
+  S.car.mileage = km;
+  saveAllToStorage();
+
+  // Show hint
+  const hint = document.getElementById('dash-mileage-hint');
+  hint.textContent = `✓ Пробіг оновлено: ${km.toLocaleString('uk')} км · ${new Date().toLocaleDateString('uk')}`;
+  hint.style.color = 'var(--success)';
+
+  // Re-render dashboard
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const currentMileage = parseInt(
+    document.getElementById('dash-mileage')?.value ||
+    document.getElementById('car-mileage')?.value ||
+    S.car?.mileage || 0
+  );
+
+  // Sync mileage input
+  if (currentMileage) {
+    document.getElementById('dash-mileage').value = currentMileage;
+  }
+
+  // Update subtitle
+  const make  = S.car?.make  || document.getElementById('car-make')?.value  || '';
+  const model = S.car?.model || document.getElementById('car-model')?.value || '';
+  const sub = document.getElementById('dash-sub');
+  if (make && model) {
+    sub.innerHTML = `<strong>${make} ${model}</strong> · пробіг: <strong style="font-family:'JetBrains Mono',monospace">${currentMileage ? currentMileage.toLocaleString('uk') + ' км' : '—'}</strong>`;
+  }
+
+  // Gather maintenance data from checkboxes
+  const items = MAINTENANCE_ITEMS.map(item => {
+    const checked = document.getElementById('chk-' + item.id)?.checked || false;
+    const doneMileage = parseInt(document.getElementById('km-' + item.id)?.value || 0);
+    const interval = MAINT_INTERVALS[item.id];
+    if (!interval) return null;
+
+    let status = 'unknown';
+    let remaining = null;
+    let pct = 0;
+    let nextMileage = null;
+
+    if (checked && doneMileage && currentMileage && interval.km) {
+      nextMileage = doneMileage + interval.km;
+      remaining = nextMileage - currentMileage;
+      const used = currentMileage - doneMileage;
+      pct = Math.min(100, Math.round((used / interval.km) * 100));
+
+      if (remaining <= 0)               status = 'danger';
+      else if (remaining < interval.km * 0.15) status = 'warning';
+      else                              status = 'ok';
+    }
+
+    return {
+      id: item.id,
+      label: interval.label,
+      sub: item.sub,
+      checked,
+      doneMileage,
+      nextMileage,
+      remaining,
+      pct,
+      status,
+      intervalKm: interval.km,
+    };
+  }).filter(Boolean);
+
+  // Alerts for danger/warning
+  const alerts = items.filter(i => i.status === 'danger' || i.status === 'warning');
+  const alertsEl = document.getElementById('dash-alerts');
+  alertsEl.innerHTML = alerts.map(a => `
+    <div class="dash-alert ${a.status === 'warning' ? 'warning' : ''}">
+      <div class="dash-alert-icon">${a.status === 'danger' ? '🔴' : '🟡'}</div>
+      <div class="dash-alert-text">
+        <strong>${a.label}</strong>
+        ${a.remaining !== null && a.remaining <= 0
+          ? `Прострочено на <strong>${Math.abs(a.remaining).toLocaleString('uk')} км</strong> — потрібна негайна заміна`
+          : `Залишилось <strong>${a.remaining?.toLocaleString('uk')} км</strong> до заміни`}
+      </div>
+    </div>`).join('');
+
+  // Check if any data exists
+  const hasData = items.some(i => i.checked && i.doneMileage);
+  const grid = document.getElementById('dash-grid');
+
+  if (!currentMileage || !hasData) {
+    grid.innerHTML = `
+      <div class="dash-empty">
+        <div class="dash-empty-icon">🔧</div>
+        <div class="dash-empty-text">
+          ${!currentMileage
+            ? 'Введіть поточний пробіг вище щоб побачити стан авто'
+            : 'Перейдіть у "Регламент ТО" і відмітьте виконані роботи з пробігом'}
+        </div>
+        <button class="btn btn-secondary" onclick="goto(${!currentMileage ? "'car'" : "'maint'"})">
+          ${!currentMileage ? 'Профіль авто →' : 'Регламент ТО →'}
+        </button>
+      </div>`;
+    return;
+  }
+
+  // Render groups
+  grid.innerHTML = MAINT_GROUPS.map(group => {
+    const groupItems = items.filter(i => group.ids.includes(i.id));
+    const rows = groupItems.map(item => renderDashItem(item)).join('');
+    return `<div class="dash-section-title">${group.label}</div>${rows}`;
+  }).join('');
+}
+
+function renderDashItem(item) {
+  if (!item.checked || !item.doneMileage) {
+    return `
+      <div class="dash-item status-unknown">
+        <div class="dash-item-header">
+          <div class="dash-item-label">
+            <span class="status-dot"></span>
+            ${item.label}
+          </div>
+          <div class="dash-item-right">
+            <div class="dash-item-km unknown">—</div>
+            <div class="dash-item-date">Дані не введені</div>
+          </div>
+        </div>
+        <div class="dash-progress-track">
+          <div class="dash-progress-fill unknown" style="width:0%"></div>
+        </div>
+        <div class="dash-progress-meta">
+          <span>Перейдіть у Регламент ТО</span>
+          <span>інтервал: ${item.intervalKm?.toLocaleString('uk')} км</span>
+        </div>
+      </div>`;
+  }
+
+  const s = item.status;
+  const kmClass = s === 'ok' ? 'ok' : s === 'warning' ? 'warning' : 'danger';
+  const kmText  = item.remaining !== null && item.remaining <= 0
+    ? `−${Math.abs(item.remaining).toLocaleString('uk')} км`
+    : item.remaining !== null
+      ? `+${item.remaining.toLocaleString('uk')} км`
+      : '—';
+  const kmLabel = item.remaining !== null && item.remaining <= 0
+    ? 'ПРОСТРОЧЕНО' : 'залишилось';
+
+  // Progress bar: fill = how much USED (0% = just done, 100% = overdue)
+  const fillPct = Math.min(100, item.pct);
+
+  return `
+    <div class="dash-item status-${s}">
+      <div class="dash-item-header">
+        <div class="dash-item-label">
+          <span class="status-dot"></span>
+          ${item.label}
+        </div>
+        <div class="dash-item-right">
+          <div class="dash-item-km ${kmClass}">${kmText}</div>
+          <div class="dash-item-date">${kmLabel} · зроблено на ${item.doneMileage.toLocaleString('uk')} км</div>
+        </div>
+      </div>
+      <div class="dash-progress-track">
+        <div class="dash-progress-fill ${kmClass}" style="width:${fillPct}%"></div>
+      </div>
+      <div class="dash-progress-meta">
+        <span>${item.doneMileage.toLocaleString('uk')} км</span>
+        <span>${item.nextMileage?.toLocaleString('uk')} км</span>
+      </div>
+    </div>`;
+}
+
 // ══════════════════════════════════════════════
 
 const STORAGE_KEY = 'autoAssistant_v1';
