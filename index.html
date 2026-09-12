@@ -825,6 +825,40 @@
     .maint-row .maint-label { grid-column: 1 / -1; }
     .ocr-grid { grid-template-columns: 1fr; }
   }
+  /* ── Garage (multi-car) ── */
+  .garage-list {
+    padding: 0 12px 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .garage-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 8px; border-radius: 7px; cursor: pointer;
+    transition: background 0.15s; position: relative;
+  }
+  .garage-item:hover { background: rgba(79,124,255,0.06); }
+  .garage-item.active { background: rgba(79,124,255,0.12); }
+  .garage-item-thumb {
+    width: 34px; height: 24px; border-radius: 4px;
+    background: var(--surface2); border: 1px solid var(--border);
+    overflow: hidden; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .garage-item-thumb img { width:100%; height:100%; object-fit:cover; }
+  .garage-item-info { flex:1; min-width:0; }
+  .garage-item-name { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .garage-item-year { font-size:10px; color:var(--text-dim); }
+  .garage-item-del { opacity:0; background:none; border:none; color:var(--danger); cursor:pointer; font-size:16px; padding:2px 4px; border-radius:4px; transition:opacity 0.15s; flex-shrink:0; }
+  .garage-item:hover .garage-item-del { opacity:0.5; }
+  .garage-item-del:hover { opacity:1 !important; }
+  .garage-add-btn {
+    display:flex; align-items:center; gap:7px; width:100%;
+    padding: 8px; background:none; border:1.5px dashed var(--border-light);
+    border-radius:7px; color:var(--text-muted); font-size:12px; font-weight:500;
+    cursor:pointer; font-family:var(--font); transition: border-color 0.15s, color 0.15s;
+    margin-top:6px;
+  }
+  .garage-add-btn:hover { border-color:var(--accent); color:var(--accent); }
 </style>
 </head>
 <body>
@@ -838,6 +872,8 @@
       <div class="logo-name">Авто<span>Асистент</span></div>
     </div>
     <nav class="nav">
+      <!-- Garage list -->
+      <div class="garage-list" id="garage-list"></div>
       <div class="nav-item active" onclick="goto('car')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="7" width="20" height="12" rx="3"/><path d="M6 7l2-4h8l2 4"/><circle cx="7" cy="16" r="1.5" fill="currentColor"/><circle cx="17" cy="16" r="1.5" fill="currentColor"/>
@@ -1347,16 +1383,35 @@ const GENERATIONS = {
       {code:'Mk4',  label:'Mk4 (NX) · 2020–',       from:2020, to:2030, wikiQuery:'Skoda Octavia Mk4'},
       {code:'Mk3',  label:'Mk3 (5E) · 2012–2020',   from:2012, to:2020, wikiQuery:'Skoda Octavia Mk3'},
       {code:'Mk2',  label:'Mk2 (1Z) · 2004–2013',   from:2004, to:2013, wikiQuery:'Skoda Octavia 1Z'},
-      {code:'Tour', label:'Tour (1U) · 1996–2010',   from:1996, to:2010, wikiQuery:'Skoda Octavia Tour'},
+      {code:'Tour', label:'Tour (1U) · 1996–2011',   from:1996, to:2011, wikiQuery:'Skoda Octavia Tour'},
     ],
-    'KODIAQ':[{code:'Mk2',label:'Mk2 · 2023–',from:2023,to:2030,wikiQuery:'Skoda Kodiaq Mk2'},{code:'Mk1',label:'Mk1 · 2016–2023',from:2016,to:2023,wikiQuery:'Skoda Kodiaq'}],
+    'FABIA':[
+      {code:'Mk4',  label:'Mk4 · 2021–',             from:2021, to:2030, wikiQuery:'Skoda Fabia Mk4'},
+      {code:'Mk3',  label:'Mk3 · 2014–2021',         from:2014, to:2021, wikiQuery:'Skoda Fabia Mk3'},
+      {code:'Mk2',  label:'Mk2 · 2006–2014',         from:2006, to:2014, wikiQuery:'Skoda Fabia Mk2'},
+      {code:'Mk1',  label:'Mk1 · 1999–2007',         from:1999, to:2007, wikiQuery:'Skoda Fabia Mk1'},
+    ],
+    'SUPERB':[
+      {code:'Mk3',  label:'Mk3 · 2015–',             from:2015, to:2030, wikiQuery:'Skoda Superb Mk3'},
+      {code:'Mk2',  label:'Mk2 · 2008–2015',         from:2008, to:2015, wikiQuery:'Skoda Superb Mk2'},
+      {code:'Mk1',  label:'Mk1 · 2001–2008',         from:2001, to:2008, wikiQuery:'Skoda Superb Mk1'},
+    ],
+    'KAROQ':[
+      {code:'Mk1',  label:'Mk1 · 2017–',             from:2017, to:2030, wikiQuery:'Skoda Karoq'},
+    ],
+    'KODIAQ':[
+      {code:'Mk2',  label:'Mk2 · 2023–',             from:2023, to:2030, wikiQuery:'Skoda Kodiaq Mk2'},
+      {code:'Mk1',  label:'Mk1 · 2016–2023',         from:2016, to:2023, wikiQuery:'Skoda Kodiaq'},
+    ],
   },
 };
 
 // ── Generation helpers ──
 function getGenerations(make, model) {
-  const m = (make||'').toUpperCase().trim();
-  const mod = (model||'').toUpperCase().trim();
+  // Normalize: remove diacritics (Š→S, Ž→Z etc.) and uppercase
+  const normalize = str => (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+  const m   = normalize(make);
+  const mod = normalize(model);
   const brandData = GENERATIONS[m] || {};
   return brandData[mod]
     || Object.entries(brandData).find(([k])=>mod.includes(k)||k.includes(mod))?.[1]
@@ -1388,10 +1443,19 @@ function populateGenerationSelect(make, model, year) {
   });
   const auto = autoSelectGenByYear(gens, year);
   if (auto) {
-    sel.value = auto.code;
-    hint.textContent = `Визначено автоматично по року ${year}`;
-    hint.style.color = 'var(--success)';
-    onGenerationChange(true);
+    // Check if another generation also covers this year (overlap)
+    const overlaps = gens.filter(g => parseInt(year) >= g.from && parseInt(year) <= g.to);
+    if (overlaps.length > 1) {
+      sel.value = auto.code;
+      hint.textContent = `⚠️ Рік ${year} підходить до кількох поколінь — перевірте і оберіть правильне`;
+      hint.style.color = 'var(--warning)';
+      onGenerationChange(true);
+    } else {
+      sel.value = auto.code;
+      hint.textContent = `Визначено автоматично по року ${year}`;
+      hint.style.color = 'var(--success)';
+      onGenerationChange(true);
+    }
   } else {
     hint.textContent = 'Оберіть покоління — фото оновиться одразу';
     hint.style.color = '';
@@ -2229,6 +2293,159 @@ function renderDashItem(item) {
 }
 
 // ══════════════════════════════════════════════
+// Garage — мультиавто
+// ══════════════════════════════════════════════
+const GARAGE_KEY    = 'autoAssistant_garage_v1';
+const ACTIVE_ID_KEY = 'autoAssistant_activeId';
+
+function garageLoad() {
+  try { return JSON.parse(localStorage.getItem(GARAGE_KEY) || '[]'); } catch { return []; }
+}
+function garageSave(list) { localStorage.setItem(GARAGE_KEY, JSON.stringify(list)); }
+function garageActiveId() { return localStorage.getItem(ACTIVE_ID_KEY) || null; }
+function garageSetActive(id) { localStorage.setItem(ACTIVE_ID_KEY, id); }
+function garageNewId() { return 'car_' + Date.now(); }
+
+function renderGarage() {
+  const list   = garageLoad();
+  const active = garageActiveId();
+  const el     = document.getElementById('garage-list');
+  if (!el) return;
+  el.innerHTML = list.map(car => `
+    <div class="garage-item ${car.id === active ? 'active' : ''}" onclick="garageSwitchTo('${car.id}')">
+      <div class="garage-item-thumb">
+        ${car.photoUrl ? `<img src="${car.photoUrl}" alt="" onerror="this.style.display='none'">` : '🚗'}
+      </div>
+      <div class="garage-item-info">
+        <div class="garage-item-name">${car.make || 'Нове авто'} ${car.model || ''}</div>
+        <div class="garage-item-year">${car.year || ''}${car.plate ? ' · ' + car.plate : ''}</div>
+      </div>
+      <button class="garage-item-del" onclick="garageDelete('${car.id}',event)" title="Видалити">×</button>
+    </div>`).join('') +
+    `<button class="garage-add-btn" onclick="garageAddNew()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Додати авто
+    </button>`;
+}
+
+function garageSaveCurrentCar() {
+  const id = garageActiveId();
+  if (!id) return;
+  const list = garageLoad();
+  const idx  = list.findIndex(c => c.id === id);
+  const carData = {
+    id,
+    make:        document.getElementById('car-make')?.value || '',
+    model:       document.getElementById('car-model')?.value || '',
+    year:        document.getElementById('car-year')?.value || '',
+    engine:      document.getElementById('car-engine')?.value || '',
+    fuel:        document.getElementById('car-fuel')?.value || '',
+    generation:  document.getElementById('car-generation')?.value || '',
+    mileage:     document.getElementById('car-mileage')?.value || '',
+    mileageReal: document.getElementById('car-mileage-real')?.value || '',
+    mileageOk:   document.getElementById('mileage-confirmed')?.checked || false,
+    plate:       document.getElementById('car-plate')?.value || '',
+    owner:       document.getElementById('owner-name')?.value || '',
+    notes:       document.getElementById('car-notes')?.value || '',
+    vin:         document.getElementById('vin')?.value || '',
+    photoUrl:    document.getElementById('car-photo-img')?.src || '',
+    maint: MAINTENANCE_ITEMS.map(item => ({
+      id:      item.id,
+      checked: document.getElementById('chk-' + item.id)?.checked || false,
+      km:      document.getElementById('km-'  + item.id)?.value   || '',
+    })),
+    savedAt: new Date().toISOString(),
+  };
+  if (idx >= 0) list[idx] = carData; else list.push(carData);
+  garageSave(list);
+  renderGarage();
+}
+
+function garageSwitchTo(id) {
+  garageSaveCurrentCar();
+  garageSetActive(id);
+  const car = garageLoad().find(c => c.id === id);
+  if (!car) return;
+  clearCarForm();
+  const sv = (elId, val) => { const el = document.getElementById(elId); if (el && val) el.value = val; };
+  sv('vin', car.vin); sv('car-make', car.make); sv('car-model', car.model);
+  sv('car-year', car.year); sv('car-engine', car.engine); sv('car-fuel', car.fuel);
+  sv('car-mileage', car.mileage); sv('car-mileage-real', car.mileageReal);
+  sv('car-plate', car.plate); sv('owner-name', car.owner); sv('car-notes', car.notes);
+  if (car.mileageOk) { const c = document.getElementById('mileage-confirmed'); if (c) { c.checked=true; onMileageConfirm(); } }
+  S.car = { ...car };
+  if (car.make && car.model) {
+    renderCarSpecs({ make:car.make, model:car.model, year:car.year, vin:car.vin||'—',
+      fuel:car.fuel||'', engine:car.engine||'', cylinders:'', transmissionStyle:'',
+      driveType:'', bodyClass:'', country:'', series:'' });
+    populateGenerationSelect(car.make, car.model, car.year);
+    if (car.generation) {
+      const sel = document.getElementById('car-generation');
+      if (sel) { sel.value = car.generation; onGenerationChange(true); }
+    }
+    if (car.vin?.length === 17) {
+      document.getElementById('vin-result')?.classList.add('visible');
+      initMileagePanel(car.vin, car.make, car.model, car.year);
+    }
+  }
+  renderMaintList();
+  (car.maint||[]).forEach(item => {
+    const chk = document.getElementById('chk-' + item.id);
+    const km  = document.getElementById('km-'  + item.id);
+    if (chk && item.checked) { chk.checked=true; toggleMaintRow(item.id); }
+    if (km  && item.km)      { km.value=item.km;  updateDelta(item.id); }
+  });
+  renderGarage();
+  goto('car');
+  const sub = document.querySelector('#page-car .page-sub');
+  if (sub && car.make) sub.innerHTML = `Активне: <strong>${car.make} ${car.model}</strong>
+    <button onclick="garageDelete('${id}',event)" style="margin-left:10px;background:none;border:none;
+    color:var(--danger);font-size:12px;cursor:pointer;font-family:var(--font);">× Видалити</button>`;
+}
+
+function garageAddNew() {
+  garageSaveCurrentCar();
+  const id = garageNewId();
+  const list = garageLoad();
+  list.push({ id, make:'', model:'', year:'', savedAt: new Date().toISOString() });
+  garageSave(list); garageSetActive(id);
+  clearCarForm(); renderGarage(); goto('car');
+  const sub = document.querySelector('#page-car .page-sub');
+  if (sub) sub.textContent = 'Нове авто — введіть VIN або заповніть вручну';
+}
+
+function garageDelete(id, event) {
+  if (event) event.stopPropagation();
+  const list = garageLoad();
+  const car  = list.find(c => c.id === id);
+  const name = car ? `${car.make || 'Нове авто'} ${car.model || ''}`.trim() : 'це авто';
+  if (!confirm(`Видалити ${name} з гаражу?`)) return;
+  const newList = list.filter(c => c.id !== id);
+  garageSave(newList);
+  if (garageActiveId() === id) {
+    if (newList.length > 0) garageSwitchTo(newList[0].id);
+    else { garageSetActive(''); clearCarForm(); renderGarage(); }
+  } else renderGarage();
+}
+
+function clearCarForm() {
+  ['vin','car-make','car-model','car-year','car-engine',
+   'car-mileage','car-mileage-real','car-plate','owner-name','car-notes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
+  const fuel=document.getElementById('car-fuel'); if(fuel) fuel.value='';
+  const chk=document.getElementById('mileage-confirmed'); if(chk) chk.checked=false;
+  document.getElementById('vin-result')?.classList.remove('visible');
+  document.getElementById('car-card')?.classList.remove('visible');
+  const gc=document.getElementById('gen-card'); if(gc) gc.style.display='none';
+  const mcr=document.getElementById('mileage-custom-row'); if(mcr) mcr.style.display='block';
+  const ecl=document.getElementById('ext-check-links'); if(ecl) ecl.innerHTML='';
+  const img=document.getElementById('car-photo-img');
+  if(img){img.src='';img.style.display='none';}
+  const ph=document.getElementById('car-photo-placeholder'); if(ph) ph.style.display='flex';
+  S.car={};
+}
+
+// ══════════════════════════════════════════════
 
 const STORAGE_KEY = 'autoAssistant_v1';
 
@@ -2366,35 +2583,77 @@ document.addEventListener('DOMContentLoaded', () => {
     if (val) document.getElementById(id).value = val;
   });
 
-  // Render maintenance list first (so elements exist before restore)
   renderMaintList();
 
-  // Auto-restore saved car data
-  const restored = loadAllFromStorage();
+  // ── Garage init ──
+  let garage = garageLoad();
 
-  if (restored) {
-    // Show subtle "restored" indicator
-    const sub = document.querySelector('#page-car .page-sub');
-    if (sub) {
-      const make = document.getElementById('car-make').value;
-      const model = document.getElementById('car-model').value;
-      sub.innerHTML = `Відновлено: <strong>${make} ${model}</strong>
-        <button onclick="clearCarStorage()" style="margin-left:12px;background:none;border:none;
-        color:var(--danger);font-size:12px;cursor:pointer;opacity:0.7;font-family:var(--font);">
-        × Видалити авто</button>`;
-    }
+  // Міграція старих даних (один профіль → гараж)
+  const oldData = localStorage.getItem(STORAGE_KEY);
+  if (oldData && garage.length === 0) {
+    try {
+      const old = JSON.parse(oldData);
+      if (old.car?.make) {
+        const id = garageNewId();
+        garage = [{ id, ...old.car, maint: old.maint||[], savedAt: old.savedAt||'' }];
+        garageSave(garage);
+        garageSetActive(id);
+      }
+    } catch(e) {}
   }
 
-  // Auto-save on any input change (debounced)
+  // Якщо гараж порожній — створюємо перший слот
+  if (garage.length === 0) {
+    const id = garageNewId();
+    garageSave([{ id, make:'', model:'', year:'', savedAt: new Date().toISOString() }]);
+    garageSetActive(id);
+    garage = garageLoad();
+  }
+
+  // Якщо нема активного — активуємо перший
+  if (!garageActiveId()) garageSetActive(garage[0].id);
+
+  // Завантажуємо активне авто
+  const activeId  = garageActiveId();
+  const activeCar = garage.find(c => c.id === activeId);
+
+  if (activeCar?.make) {
+    // Відновлюємо форму
+    const sv = (elId, val) => { const el = document.getElementById(elId); if (el && val) el.value = val; };
+    sv('vin', activeCar.vin); sv('car-make', activeCar.make); sv('car-model', activeCar.model);
+    sv('car-year', activeCar.year); sv('car-engine', activeCar.engine); sv('car-fuel', activeCar.fuel);
+    sv('car-mileage', activeCar.mileage); sv('car-mileage-real', activeCar.mileageReal);
+    sv('car-plate', activeCar.plate); sv('owner-name', activeCar.owner); sv('car-notes', activeCar.notes);
+    if (activeCar.mileageOk) { const c=document.getElementById('mileage-confirmed'); if(c){c.checked=true;onMileageConfirm();} }
+    S.car = { ...activeCar };
+    renderCarSpecs({ make:activeCar.make, model:activeCar.model, year:activeCar.year,
+      vin:activeCar.vin||'—', fuel:activeCar.fuel||'', engine:activeCar.engine||'',
+      cylinders:'', transmissionStyle:'', driveType:'', bodyClass:'', country:'', series:'' });
+    populateGenerationSelect(activeCar.make, activeCar.model, activeCar.year);
+    if (activeCar.generation) {
+      const sel = document.getElementById('car-generation');
+      if (sel) { sel.value = activeCar.generation; onGenerationChange(true); }
+    }
+    if (activeCar.vin?.length === 17) {
+      document.getElementById('vin-result')?.classList.add('visible');
+      initMileagePanel(activeCar.vin, activeCar.make, activeCar.model, activeCar.year);
+    }
+    (activeCar.maint||[]).forEach(item => {
+      const chk=document.getElementById('chk-'+item.id);
+      const km=document.getElementById('km-'+item.id);
+      if (chk && item.checked) { chk.checked=true; toggleMaintRow(item.id); }
+      if (km  && item.km)      { km.value=item.km;  updateDelta(item.id); }
+    });
+    const sub = document.querySelector('#page-car .page-sub');
+    if (sub) sub.innerHTML = `Активне: <strong>${activeCar.make} ${activeCar.model}</strong>`;
+  }
+
+  renderGarage();
+
+  // Автозбереження при будь-якій зміні
   let saveTimer;
-  document.addEventListener('input', () => {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveAllToStorage, 800);
-  });
-  document.addEventListener('change', () => {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveAllToStorage, 800);
-  });
+  document.addEventListener('input',  () => { clearTimeout(saveTimer); saveTimer = setTimeout(garageSaveCurrentCar, 800); });
+  document.addEventListener('change', () => { clearTimeout(saveTimer); saveTimer = setTimeout(garageSaveCurrentCar, 800); });
 });
 </script>
 </body>
