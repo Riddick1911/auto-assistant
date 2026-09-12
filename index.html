@@ -1564,7 +1564,7 @@ const GENERATIONS = {
       {code:'Mk4',  label:'Mk4 (NX) · 2020–',       from:2020, to:2030, wikiQuery:'Skoda Octavia Mk4'},
       {code:'Mk3',  label:'Mk3 (5E) · 2012–2020',   from:2012, to:2020, wikiQuery:'Skoda Octavia Mk3'},
       {code:'Mk2',  label:'Mk2 (1Z) · 2004–2013',   from:2004, to:2013, wikiQuery:'Skoda Octavia 1Z'},
-      {code:'Tour', label:'Tour (1U) · 1996–2011',   from:1996, to:2011, wikiQuery:'Skoda Octavia Combi 1U Tour wagon'},
+      {code:'Tour', label:'Tour (1U) · 1996–2011',   from:1996, to:2011, wikiQuery:'Škoda Octavia Tour'},
     ],
     'FABIA':[
       {code:'Mk4',  label:'Mk4 · 2021–',             from:2021, to:2030, wikiQuery:'Skoda Fabia Mk4'},
@@ -1624,19 +1624,10 @@ function populateGenerationSelect(make, model, year) {
   });
   const auto = autoSelectGenByYear(gens, year);
   if (auto) {
-    // Check if another generation also covers this year (overlap)
-    const overlaps = gens.filter(g => parseInt(year) >= g.from && parseInt(year) <= g.to);
-    if (overlaps.length > 1) {
-      sel.value = auto.code;
-      hint.textContent = `⚠️ Рік ${year} підходить до кількох поколінь — перевірте і оберіть правильне`;
-      hint.style.color = 'var(--warning)';
-      onGenerationChange(true);
-    } else {
-      sel.value = auto.code;
-      hint.textContent = `Визначено автоматично по року ${year}`;
-      hint.style.color = 'var(--success)';
-      onGenerationChange(true);
-    }
+    sel.value = auto.code;
+    hint.textContent = `Визначено автоматично по року ${year}`;
+    hint.style.color = 'var(--success)';
+    onGenerationChange(true);
   } else {
     hint.textContent = 'Оберіть покоління — фото оновиться одразу';
     hint.style.color = '';
@@ -1796,33 +1787,51 @@ async function loadCarPhotoByQuery(wikiQuery, make, model, year) {
   const img = document.getElementById('car-photo-img');
   img.style.display = 'none';
   document.getElementById('car-photo-placeholder').style.display = 'flex';
-  // 1. Wikipedia page thumbnail
-  try {
-    const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiQuery)}&prop=pageimages&format=json&pithumbsize=800&origin=*`);
-    if (r.ok) {
-      const d = await r.json();
-      const pages = Object.values(d.query?.pages||{});
-      const thumb = pages[0]?.thumbnail?.source;
-      if (thumb && !thumb.includes('Commons-logo') && !thumb.includes('Question')) { img.src=thumb; img.style.display='block'; return; }
-    }
-  } catch(e){}
-  // 2. Wikimedia Commons search
-  try {
-    const r = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(wikiQuery)}&srnamespace=6&format=json&origin=*&srlimit=5`);
-    if (r.ok) {
-      const d = await r.json();
-      for (const hit of (d.query?.search||[])) {
-        if (!/\.(jpg|jpeg|png|webp)$/i.test(hit.title)) continue;
-        const ir = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(hit.title)}&prop=imageinfo&iiprop=url|mime&format=json&origin=*`);
-        if (ir.ok) {
-          const id = await ir.json();
-          const info = Object.values(id.query?.pages||{})[0]?.imageinfo?.[0];
-          if (info?.url && info.mime?.startsWith('image/')) { img.src=info.url; img.style.display='block'; return; }
+
+  // Build list of queries to try in order
+  const queries = [wikiQuery];
+  // Add simpler fallbacks
+  if (!queries.includes(`${make} ${model}`)) queries.push(`${make} ${model}`);
+  if (year) queries.push(`${make} ${model} ${year}`);
+
+  for (const q of queries) {
+    // 1. Wikipedia page thumbnail
+    try {
+      const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(q)}&prop=pageimages&format=json&pithumbsize=800&origin=*`);
+      if (r.ok) {
+        const d = await r.json();
+        const pages = Object.values(d.query?.pages||{});
+        const thumb = pages[0]?.thumbnail?.source;
+        if (thumb && !thumb.includes('Commons-logo') && !thumb.includes('Question') && !thumb.includes('Wiki')) {
+          img.src=thumb; img.style.display='block'; return;
         }
       }
-    }
-  } catch(e){}
-  // 3. CarAPI fallback
+    } catch(e){}
+
+    // 2. Wikimedia Commons search
+    try {
+      const r = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srnamespace=6&format=json&origin=*&srlimit=8`);
+      if (r.ok) {
+        const d = await r.json();
+        for (const hit of (d.query?.search||[])) {
+          if (!/\.(jpg|jpeg|png|webp)$/i.test(hit.title)) continue;
+          // Skip logos, icons, maps
+          if (/logo|icon|map|flag|coat|badge|emblem/i.test(hit.title)) continue;
+          const ir = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(hit.title)}&prop=imageinfo&iiprop=url|mime|size&format=json&origin=*`);
+          if (ir.ok) {
+            const id = await ir.json();
+            const info = Object.values(id.query?.pages||{})[0]?.imageinfo?.[0];
+            // Skip very small images (likely icons)
+            if (info?.url && info.mime?.startsWith('image/') && (info.size||0) > 20000) {
+              img.src=info.url; img.style.display='block'; return;
+            }
+          }
+        }
+      }
+    } catch(e){}
+  }
+
+  // 3. CarAPI final fallback
   try {
     const r = await fetch(`https://carapi.trustcar.info/getImage?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}${year?'&year='+year:''}&format=json`);
     if (r.ok) {
