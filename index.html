@@ -1128,6 +1128,66 @@
             </select>
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Тип кузову</label>
+            <select id="car-body">
+              <option value="">—</option>
+              <option value="SUV">SUV</option>
+              <option value="Sedan">Sedan</option>
+              <option value="Hatchback">Hatchback</option>
+              <option value="Wagon">Wagon (Універсал)</option>
+              <option value="Coupe">Coupe</option>
+              <option value="Convertible">Convertible</option>
+              <option value="Pickup">Pickup</option>
+              <option value="Minivan">Minivan</option>
+              <option value="Crossover">Crossover</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Трансмісія</label>
+            <select id="car-transmission">
+              <option value="">—</option>
+              <option value="Механіка">Механіка</option>
+              <option value="Автомат">Автомат</option>
+              <option value="Робот (DSG)">Робот (DSG)</option>
+              <option value="CVT">CVT</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Тип приводу</label>
+            <select id="car-drive">
+              <option value="">—</option>
+              <option value="FWD">FWD (Передній)</option>
+              <option value="RWD">RWD (Задній)</option>
+              <option value="AWD">AWD (Повний)</option>
+              <option value="4WD">4WD (Повний підкл.)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Країна виробництва</label>
+            <select id="car-country">
+              <option value="">—</option>
+              <option value="🇩🇪 Німеччина">🇩🇪 Німеччина</option>
+              <option value="🇯🇵 Японія">🇯🇵 Японія</option>
+              <option value="🇰🇷 Корея">🇰🇷 Корея</option>
+              <option value="🇺🇸 США">🇺🇸 США</option>
+              <option value="🇫🇷 Франція">🇫🇷 Франція</option>
+              <option value="🇮🇹 Італія">🇮🇹 Італія</option>
+              <option value="🇸🇪 Швеція">🇸🇪 Швеція</option>
+              <option value="🇬🇧 Британія">🇬🇧 Британія</option>
+              <option value="🇨🇿 Чехія">🇨🇿 Чехія</option>
+              <option value="🇸🇰 Словаччина">🇸🇰 Словаччина</option>
+              <option value="🇨🇳 Китай">🇨🇳 Китай</option>
+              <option value="🇺🇦 Україна">🇺🇦 Україна</option>
+              <option value="🇲🇽 Мексика">🇲🇽 Мексика</option>
+              <option value="🇭🇺 Угорщина">🇭🇺 Угорщина</option>
+              <option value="🇪🇸 Іспанія">🇪🇸 Іспанія</option>
+            </select>
+          </div>
+        </div>
 
         <!-- ── Mileage block ── -->
         <div class="field">
@@ -1738,21 +1798,61 @@ function renderCarSpecs(v) {
   document.getElementById('car-card').classList.add('visible');
   document.getElementById('car-year-badge').textContent = v.year || '—';
   document.getElementById('car-card-name').textContent = `${v.make} ${v.model}${v.series?' '+v.series:''}`;
-  const tx = simplifyTransmission(v.transmissionStyle);
-  const dr = simplifyDrive(v.driveType);
-  const fl = simplifyFuel(v.fuel);
-  const body = simplifyBodyClass(v.bodyClass);
-  const FLAGS = {'GERMANY':'🇩🇪','JAPAN':'🇯🇵','UNITED STATES':'🇺🇸','USA':'🇺🇸','SOUTH KOREA':'🇰🇷','KOREA':'🇰🇷','FRANCE':'🇫🇷','ITALY':'🇮🇹','SWEDEN':'🇸🇪','UNITED KINGDOM':'🇬🇧','CHINA':'🇨🇳','CZECHIA':'🇨🇿','SLOVAKIA':'🇸🇰','UKRAINE':'🇺🇦','HUNGARY':'🇭🇺','SPAIN':'🇪🇸','MEXICO':'🇲🇽'};
-  const up = (v.country||'').toUpperCase();
-  const flag = Object.entries(FLAGS).find(([k])=>up.includes(k))?.[1]||'🌍';
+
+  // Manual selects take priority over NHTSA data
+  const manualBody  = document.getElementById('car-body')?.value;
+  const manualTx    = document.getElementById('car-transmission')?.value;
+  const manualDrive = document.getElementById('car-drive')?.value;
+  const manualCountry = document.getElementById('car-country')?.value;
+
+  const tx   = manualTx    || simplifyTransmission(v.transmissionStyle);
+  const dr   = manualDrive  || simplifyDrive(v.driveType);
+  const fl   = simplifyFuel(v.fuel);
+  const body = manualBody   || simplifyBodyClass(v.bodyClass);
+
+  // If NHTSA gave us data and manual not yet set — auto-fill the selects
+  if (!manualTx && v.transmissionStyle) {
+    const txVal = simplifyTransmission(v.transmissionStyle);
+    const sel = document.getElementById('car-transmission');
+    if (sel && txVal !== '—') sel.value = txVal;
+  }
+  if (!manualDrive && v.driveType) {
+    const drVal = simplifyDrive(v.driveType);
+    const sel = document.getElementById('car-drive');
+    if (sel && drVal !== '—') sel.value = drVal;
+  }
+  if (!manualBody && v.bodyClass) {
+    const bodyVal = simplifyBodyClass(v.bodyClass);
+    const sel = document.getElementById('car-body');
+    if (sel && bodyVal !== v.bodyClass) sel.value = bodyVal;
+  }
+
+  // Country — prefer manual, then NHTSA
+  let countryDisplay = manualCountry || '';
+  if (!countryDisplay && v.country) {
+    const FLAGS = {'GERMANY':'🇩🇪 Німеччина','JAPAN':'🇯🇵 Японія','UNITED STATES':'🇺🇸 США','USA':'🇺🇸 США','SOUTH KOREA':'🇰🇷 Корея','KOREA':'🇰🇷 Корея','FRANCE':'🇫🇷 Франція','ITALY':'🇮🇹 Італія','SWEDEN':'🇸🇪 Швеція','UNITED KINGDOM':'🇬🇧 Британія','CHINA':'🇨🇳 Китай','CZECHIA':'🇨🇿 Чехія','SLOVAKIA':'🇸🇰 Словаччина','UKRAINE':'🇺🇦 Україна','HUNGARY':'🇭🇺 Угорщина','SPAIN':'🇪🇸 Іспанія','MEXICO':'🇲🇽 Мексика'};
+    const up = v.country.toUpperCase();
+    countryDisplay = Object.entries(FLAGS).find(([k])=>up.includes(k))?.[1] || v.country;
+    // Try to auto-select in dropdown
+    const sel = document.getElementById('car-country');
+    if (sel && countryDisplay) {
+      const opt = Array.from(sel.options).find(o => o.value === countryDisplay);
+      if (opt) sel.value = countryDisplay;
+    }
+  }
+
+  const fuelMap = {petrol:'Бензин',diesel:'Дизель',lpg:'Газ (LPG)',lpg_petrol:'Газ + Бензин',hybrid:'Гібрид',electric:'Електро'};
+  const fuelLabel = fuelMap[v.fuel] || fl || '—';
+
   document.getElementById('car-specs-grid').innerHTML = [
-    {label:'Кузов',      value:body},
-    {label:'Трансмісія', value:tx, accent:tx!=='—'},
-    {label:'Привід',     value:dr},
-    {label:'Двигун',     value:v.engine?`${v.engine} л${v.cylinders?' · '+v.cylinders+'цил.':''}`:'—'},
-    {label:'Пальне',     value:fl},
-    {label:'Країна',     value:v.country?`${flag} ${v.country}`:'—'},
+    {label:'Кузов',      value: body || '—'},
+    {label:'Трансмісія', value: tx,  accent: tx !== '—'},
+    {label:'Привід',     value: dr || '—'},
+    {label:'Двигун',     value: v.engine ? `${v.engine} л${v.cylinders?' · '+v.cylinders+'цил.':''}` : '—'},
+    {label:'Пальне',     value: fuelLabel},
+    {label:'Країна',     value: countryDisplay || '—'},
   ].map(s=>`<div class="car-spec"><div class="car-spec-label">${s.label}</div><div class="car-spec-value${s.accent?' accent':''}">${s.value}</div></div>`).join('');
+
   const vinBadge = v.vin && v.vin !== '—'
     ? `<div class="car-generation-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>VIN: ${v.vin}</div>` : '';
   document.getElementById('car-generation-wrap').innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${vinBadge}</div>`;
@@ -1944,17 +2044,21 @@ async function saveCar(goNext = false) {
   const generation = document.getElementById('car-generation')?.value || '';
 
   S.car = {
-    vin:        document.getElementById('vin').value.trim(),
+    vin:          document.getElementById('vin').value.trim(),
     make, model,
-    year:       document.getElementById('car-year').value,
-    engine:     document.getElementById('car-engine').value,
-    fuel:       document.getElementById('car-fuel').value,
+    year:         document.getElementById('car-year').value,
+    engine:       document.getElementById('car-engine').value,
+    fuel:         document.getElementById('car-fuel').value,
     generation,
-    mileage:    mileageConfirmed ? mileageBase : (mileageReal || mileageBase),
+    body:         document.getElementById('car-body')?.value || '',
+    transmission: document.getElementById('car-transmission')?.value || '',
+    drive:        document.getElementById('car-drive')?.value || '',
+    country:      document.getElementById('car-country')?.value || '',
+    mileage:      mileageConfirmed ? mileageBase : (mileageReal || mileageBase),
     mileage_verified: mileageConfirmed ? 'так' : 'ні (введено вручну)',
-    plate:      document.getElementById('car-plate').value.trim(),
-    notes:      document.getElementById('car-notes').value.trim(),
-    owner:      document.getElementById('owner-name').value.trim() || 'Користувач'
+    plate:        document.getElementById('car-plate').value.trim(),
+    notes:        document.getElementById('car-notes').value.trim(),
+    owner:        document.getElementById('owner-name').value.trim() || 'Користувач'
   };
 
   if (!S.sheetsUrl) {
@@ -2094,7 +2198,7 @@ async function processFile(file, ctx) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [{
           role: 'user',
           content: [
@@ -2142,7 +2246,36 @@ async function processFile(file, ctx) {
 
     const data = await response.json();
     const raw = data.content[0].text.trim();
-    const json = JSON.parse(raw.replace(/```json|```/g,'').trim());
+
+    // Robust JSON extraction — handle truncated or wrapped responses
+    let json;
+    try {
+      // Try direct parse first
+      const cleaned = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
+      json = JSON.parse(cleaned);
+    } catch(e1) {
+      // Try to extract JSON object from text
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          json = JSON.parse(match[0]);
+        } catch(e2) {
+          // Try to fix truncated JSON by closing open strings/arrays/objects
+          let fixed = match[0];
+          // Count unclosed brackets
+          let opens = (fixed.match(/\[/g)||[]).length - (fixed.match(/\]/g)||[]).length;
+          let openBraces = (fixed.match(/\{/g)||[]).length - (fixed.match(/\}/g)||[]).length;
+          // Close any unterminated string
+          if ((fixed.match(/"/g)||[]).length % 2 !== 0) fixed += '"';
+          while (opens-- > 0) fixed += ']';
+          while (openBraces-- > 0) fixed += '}';
+          try { json = JSON.parse(fixed); }
+          catch(e3) { throw new Error('Не вдалося розпізнати відповідь. Спробуйте ще раз.'); }
+        }
+      } else {
+        throw new Error('Claude не повернув JSON. Спробуйте ще раз.');
+      }
+    }
 
     clearStatus(statusId);
 
@@ -2812,6 +2945,10 @@ function garageSaveCurrentCar() {
     engine:      document.getElementById('car-engine')?.value || '',
     fuel:        document.getElementById('car-fuel')?.value || '',
     generation:  document.getElementById('car-generation')?.value || '',
+    body:        document.getElementById('car-body')?.value || '',
+    transmission:document.getElementById('car-transmission')?.value || '',
+    drive:       document.getElementById('car-drive')?.value || '',
+    country:     document.getElementById('car-country')?.value || '',
     mileage:     document.getElementById('car-mileage')?.value || '',
     mileageReal: document.getElementById('car-mileage-real')?.value || '',
     mileageOk:   document.getElementById('mileage-confirmed')?.checked || false,
@@ -2843,6 +2980,8 @@ function garageSwitchTo(id) {
   sv('car-year', car.year); sv('car-engine', car.engine); sv('car-fuel', car.fuel);
   sv('car-mileage', car.mileage); sv('car-mileage-real', car.mileageReal);
   sv('car-plate', car.plate); sv('owner-name', car.owner); sv('car-notes', car.notes);
+  sv('car-body', car.body); sv('car-transmission', car.transmission);
+  sv('car-drive', car.drive); sv('car-country', car.country);
   if (car.mileageOk) { const c = document.getElementById('mileage-confirmed'); if (c) { c.checked=true; onMileageConfirm(); } }
   S.car = { ...car };
   if (car.make && car.model) {
@@ -2875,14 +3014,75 @@ function garageSwitchTo(id) {
 }
 
 function garageAddNew() {
-  garageSaveCurrentCar();
-  const id = garageNewId();
+  garageSaveCurrentCar(); // зберегти поточне перед перемиканням
+
+  const id   = garageNewId();
   const list = garageLoad();
-  list.push({ id, make:'', model:'', year:'', savedAt: new Date().toISOString() });
-  garageSave(list); garageSetActive(id);
-  clearCarForm(); renderGarage(); goto('car');
+  list.push({ id, make:'', model:'', year:'', maint:[], savedAt: new Date().toISOString() });
+  garageSave(list);
+  garageSetActive(id);
+
+  clearCarForm(); // повне очищення форми
+  renderGarage();
+  goto('car');
+
   const sub = document.querySelector('#page-car .page-sub');
   if (sub) sub.textContent = 'Нове авто — введіть VIN або заповніть вручну';
+}
+
+function clearCarForm() {
+  // ── Текстові поля ──
+  ['vin','car-make','car-model','car-year','car-engine',
+   'car-mileage','car-mileage-real','car-plate','owner-name','car-notes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+  // ── Селекти ──
+  ['car-fuel','car-body','car-transmission','car-drive','car-country']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+  // ── Пробіг ──
+  const chk = document.getElementById('mileage-confirmed');
+  if (chk) { chk.checked = false; }
+  const mcr = document.getElementById('mileage-custom-row');
+  if (mcr) mcr.style.display = 'block';
+  const ecl = document.getElementById('ext-check-links');
+  if (ecl) ecl.innerHTML = '';
+  const mileageHint = document.getElementById('dash-mileage-hint');
+  if (mileageHint) mileageHint.textContent = '';
+
+  // ── VIN блок ──
+  document.getElementById('vin-result')?.classList.remove('visible');
+  clearStatus('vin-status');
+
+  // ── Карточка авто ──
+  document.getElementById('car-card')?.classList.remove('visible');
+  const genCard = document.getElementById('gen-card');
+  if (genCard) genCard.style.display = 'none';
+  const genSel = document.getElementById('car-generation');
+  if (genSel) { genSel.innerHTML = '<option value="">— оберіть покоління —</option>'; }
+  const genHint = document.getElementById('gen-hint');
+  if (genHint) { genHint.textContent = ''; }
+
+  // ── Фото ──
+  const img = document.getElementById('car-photo-img');
+  if (img) { img.src = ''; img.style.display = 'none'; }
+  const ph = document.getElementById('car-photo-placeholder');
+  if (ph) ph.style.display = 'flex';
+
+  // ── Регламент ТО — скидаємо всі галочки і пробіги ──
+  MAINTENANCE_ITEMS.forEach(item => {
+    const chkEl = document.getElementById('chk-' + item.id);
+    const kmEl  = document.getElementById('km-'  + item.id);
+    const delta = document.getElementById('delta-' + item.id);
+    if (chkEl) { chkEl.checked = false; }
+    if (kmEl)  { kmEl.value = ''; kmEl.disabled = true; }
+    if (delta) { delta.textContent = ''; }
+  });
+  const maintMileage = document.getElementById('maint-cur-mileage');
+  if (maintMileage) maintMileage.textContent = '— км';
+
+  // ── Стан об'єкту ──
+  S.car = {};
 }
 
 function garageDelete(id, event) {
@@ -2898,25 +3098,6 @@ function garageDelete(id, event) {
     else { garageSetActive(''); clearCarForm(); renderGarage(); }
   } else renderGarage();
 }
-
-function clearCarForm() {
-  ['vin','car-make','car-model','car-year','car-engine',
-   'car-mileage','car-mileage-real','car-plate','owner-name','car-notes']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
-  const fuel=document.getElementById('car-fuel'); if(fuel) fuel.value='';
-  const chk=document.getElementById('mileage-confirmed'); if(chk) chk.checked=false;
-  document.getElementById('vin-result')?.classList.remove('visible');
-  document.getElementById('car-card')?.classList.remove('visible');
-  const gc=document.getElementById('gen-card'); if(gc) gc.style.display='none';
-  const mcr=document.getElementById('mileage-custom-row'); if(mcr) mcr.style.display='block';
-  const ecl=document.getElementById('ext-check-links'); if(ecl) ecl.innerHTML='';
-  const img=document.getElementById('car-photo-img');
-  if(img){img.src='';img.style.display='none';}
-  const ph=document.getElementById('car-photo-placeholder'); if(ph) ph.style.display='flex';
-  S.car={};
-}
-
-// ══════════════════════════════════════════════
 
 const STORAGE_KEY = 'autoAssistant_v1';
 
