@@ -936,6 +936,113 @@
     font-weight: 600; font-size: 15px; color: var(--text);
   }
 
+  /* ── Scan Journal ── */
+  .journal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 28px 0 12px;
+  }
+  .journal-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .journal-count {
+    font-size: 12px;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 10px;
+  }
+  .journal-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+  .journal-item:hover { border-color: var(--border-light); }
+
+  .journal-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .journal-item-station {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .journal-item-date {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .journal-item-right {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .journal-item-cost {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--success);
+  }
+  .journal-item-km {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .journal-item-works {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .journal-tag {
+    font-size: 11px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    color: var(--text-muted);
+  }
+  .journal-tag.maint {
+    border-color: rgba(79,124,255,0.3);
+    color: var(--accent);
+    background: rgba(79,124,255,0.07);
+  }
+  .journal-tag.other {
+    border-color: rgba(245,166,35,0.3);
+    color: var(--warning);
+    background: rgba(245,166,35,0.07);
+  }
+  .journal-item-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .journal-empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-dim);
+    font-size: 13px;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    margin-top: 12px;
+  }
+
   /* ── Garage (multi-car) ── */
   .garage-list {
     padding: 0 12px 12px;
@@ -1431,11 +1538,14 @@
           </div>
         </div>
         <div style="display:flex; gap:10px;">
-          <button class="btn btn-primary" onclick="saveOcrToSheets()">Зберегти в Google Sheets</button>
+          <button class="btn btn-primary" onclick="saveOcrToSheets()">Зберегти</button>
           <button class="btn btn-ghost" onclick="clearOcr()">Скасувати</button>
         </div>
         <div class="status-bar" id="ocr-save-status"></div>
       </div>
+
+      <!-- Журнал збережених чеків -->
+      <div id="scan-journal"></div>
     </div>
 
 
@@ -1556,6 +1666,7 @@ function goto(page) {
   if (page === 'maint') renderMaintList();
   if (page === 'dash')  renderDashboard();
   if (page === 'other') renderOtherWorks();
+  if (page === 'scan')  renderScanJournal();
 }
 
 // ══════════════════════════════════════════════
@@ -2254,7 +2365,91 @@ async function processFile(file, ctx) {
 
   try {
     const base64 = await fileToBase64(file);
-    const isPdf = file.type === 'application/pdf';
+    const isPdf  = file.type === 'application/pdf';
+
+    // ── Перевірка дублікату по хешу файлу ──
+    if (ctx === 'scan') {
+      const hash = await fileHash(base64);
+      const journal = journalLoad();
+      const duplicate = journal.find(j => j.fileHash === hash);
+
+      if (duplicate) {
+        // Знаходимо що НЕ підтягнулось з попереднього разу
+        const prevMaint = [...(duplicate.maintenance_works||[]),...(duplicate.maintenance_parts||[])].join(' ').toLowerCase();
+        const prevOther = (duplicate.other_works||[]).map(w=>w.name.toLowerCase());
+
+        // Перевіряємо регламент — чи всі галочки стоять
+        const missedMaint = [];
+        Object.entries({
+          engine_oil:   /моторн|масл|олива|engine oil/,
+          oil_filter:   /масл.*фільтр|oil filter/,
+          air_filter:   /повітр.*фільтр|air filter/,
+          cabin_filter: /салон.*фільтр|cabin filter/,
+          fuel_filter:  /паливн.*фільтр|fuel filter/,
+          brake_fluid:  /гальм.*рідин|brake fluid/,
+          coolant:      /антифриз|coolant/,
+          gearbox_oil:  /олива.*кпп|trансміс/,
+          timing_belt:  /грм|timing belt/,
+          spark_plugs:  /свічк|spark plug/,
+        }).forEach(([id, rx]) => {
+          if (rx.test(prevMaint)) {
+            const chk = document.getElementById('chk-' + id);
+            if (chk && !chk.checked) missedMaint.push(id);
+          }
+        });
+
+        // Перевіряємо Інші роботи — чи всі збережені
+        const currentOther = otherWorksLoad().map(w=>w.name.toLowerCase());
+        const missedOther = (duplicate.other_works||[]).filter(w =>
+          !currentOther.some(existing => existing.includes(w.name.toLowerCase().slice(0,10)))
+        );
+
+        if (missedMaint.length > 0 || missedOther.length > 0) {
+          // Є що доповнити — робимо це автоматично
+          const parts = [];
+          if (missedMaint.length) parts.push(`${missedMaint.length} регламентних робіт`);
+          if (missedOther.length) parts.push(`${missedOther.length} інших робіт`);
+
+          if (confirm(`Цей файл вже сканувався, але не все підтягнулось.\n\nДоповнити: ${parts.join(', ')}?`)) {
+            // Доповнюємо регламент
+            missedMaint.forEach(id => {
+              const chk = document.getElementById('chk-' + id);
+              if (chk) { chk.checked = true; toggleMaintRow(id); }
+              if (duplicate.mileage) {
+                const km = document.getElementById('km-' + id);
+                if (km) { km.value = duplicate.mileage; updateDelta(id); }
+              }
+            });
+            // Доповнюємо Інші роботи
+            if (missedOther.length > 0) {
+              const list = otherWorksLoad();
+              missedOther.forEach(w => list.unshift({
+                id: 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,5),
+                name: w.name, category: w.category || 'other',
+                date: duplicate.date || '', mileage: duplicate.mileage || '',
+                cost: '', station: duplicate.station || '',
+                notes: 'Доповнено з дублікату сканування',
+              }));
+              otherWorksSave(list);
+            }
+            setStatus(statusId, 'success', `Доповнено: ${parts.join(', ')}`);
+            return;
+          } else {
+            return; // Скасовано
+          }
+        } else {
+          // Все вже є — просто повідомляємо
+          const dateStr = duplicate.date
+            ? new Date(duplicate.date+'T00:00:00').toLocaleDateString('uk',{day:'2-digit',month:'long',year:'numeric'})
+            : 'невідома дата';
+          if (!confirm(`Цей файл вже повністю збережений (${duplicate.station||'СТО'} · ${dateStr}).\n\nЗавантажити повторно?`)) {
+            clearStatus(statusId);
+            return;
+          }
+        }
+      }
+      window._pendingFileHash = hash;
+    }
 
     setStatus(statusId,'loading','Відправляємо до Claude Vision...');
 
@@ -2317,15 +2512,38 @@ async function processFile(file, ctx) {
 
     clearStatus(statusId);
 
+    // Зберігаємо для журналу
+    window._lastOcrJson = json;
+
     if (ctx === 'scan') {
       fillOcrPreview(json);
+      // Також оновлюємо регламент якщо є відповідні роботи
+      const maintFound = fillMaintFromOcr(json, true); // true = silent mode
+      if (maintFound > 0) {
+        const title = document.querySelector('.ocr-preview-title');
+        if (title) title.innerHTML =
+          `Розпізнані дані — перевірте і відредагуйте
+           <span style="margin-left:10px;font-size:11px;color:var(--success);font-weight:500;">
+           ✓ ${maintFound} регламентних робіт → Регламент ТО</span>`;
+      }
     } else {
-      // For maintenance PDF: auto-fill the checkboxes
-      fillMaintFromOcr(json);
+      fillMaintFromOcr(json, false);
     }
 
   } catch(e) {
     setStatus(statusId,'error','Помилка: ' + e.message);
+  }
+}
+
+// ── Хеш файлу для детекції дублікатів ──
+async function fileHash(base64) {
+  try {
+    const bytes = Uint8Array.from(atob(base64.slice(0, 2000)), c => c.charCodeAt(0));
+    const buf   = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+  } catch(e) {
+    // Fallback: простий хеш по довжині і першим символам
+    return btoa(base64.slice(0,50)).slice(0,16);
   }
 }
 
@@ -2395,24 +2613,33 @@ function fillOcrPreview(d) {
   document.getElementById('ocr-preview').classList.add('visible');
 }
 
-function fillMaintFromOcr(d) {
-  // Try to match works to known maintenance items
-  const works = [...(d.works || []), ...(d.parts || [])].join(' ').toLowerCase();
-  const matches = {
-    engine_oil:   /масл|oil|олива|мастил/,
-    oil_filter:   /масл.*фільтр|oil filter|оливний фільтр/,
-    air_filter:   /повітр.*фільтр|air filter/,
-    cabin_filter: /салон.*фільтр|cabin filter/,
-    fuel_filter:  /паливн.*фільтр|fuel filter/,
-    brake_fluid:  /гальм.*рідин|brake fluid/,
-    coolant:      /антифриз|coolant|охолоджуваль/,
-    timing_belt:  /грм|ремінь|timing/,
-    spark_plugs:  /свічк|spark plug/,
+function fillMaintFromOcr(d, silent = false) {
+  // Використовуємо нові класифіковані поля (або старі для сумісності)
+  const maintText = [
+    ...(d.maintenance_works || []),
+    ...(d.maintenance_parts || []),
+    ...(d.works || []),
+    ...(d.parts || []),
+  ].join(' ').toLowerCase();
+
+  const MATCHES = {
+    engine_oil:   /моторн|масл|oil change|олива|мастил|engine oil/,
+    oil_filter:   /масл.*фільтр|oil filter|оливний фільтр|фільтр.*масл/,
+    air_filter:   /повітр.*фільтр|air filter|фільтр.*повітр/,
+    cabin_filter: /салон.*фільтр|cabin filter|фільтр.*салон|пилов/,
+    fuel_filter:  /паливн.*фільтр|fuel filter|фільтр.*паливн/,
+    brake_fluid:  /гальм.*рідин|brake fluid|тормозн/,
+    coolant:      /антифриз|coolant|охолоджуваль|тосол/,
+    gearbox_oil:  /олива.*кпп|кпп.*олива|трансміс|gearbox|transmission oil/,
+    timing_belt:  /грм|ремінь грм|timing belt|ланцюг грм/,
+    spark_plugs:  /свічк|spark plug|запалюван/,
+    brake_pads_f: /колодк.*пер|передн.*колодк|front.*pad|brake pad/,
+    brake_pads_r: /колодк.*зад|задн.*колодк|rear.*pad/,
   };
 
   let found = 0;
-  Object.entries(matches).forEach(([id, rx]) => {
-    if (rx.test(works)) {
+  Object.entries(MATCHES).forEach(([id, rx]) => {
+    if (rx.test(maintText)) {
       const chk = document.getElementById('chk-' + id);
       if (chk) {
         chk.checked = true;
@@ -2426,11 +2653,17 @@ function fillMaintFromOcr(d) {
     }
   });
 
-  setStatus('maint-ocr-status','success',
-    found
-      ? `PDF прочитано. Знайдено ${found} відповідних робіт. Перевірте і збережіть.`
-      : 'PDF прочитано, але не вдалося автоматично розпізнати конкретні роботи. Заповніть вручну.'
-  );
+  if (!silent) {
+    // Зберігаємо проставлені галочки
+    garageSaveCurrentCar();
+    setStatus('maint-ocr-status', found ? 'success' : 'error',
+      found
+        ? `Знайдено ${found} регламентних робіт → проставлено і збережено ✓`
+        : 'Регламентних робіт не знайдено. Заповніть вручну.'
+    );
+  }
+
+  return found;
 }
 
 function clearOcr() {
@@ -2444,8 +2677,114 @@ function clearOcr() {
 }
 
 // ══════════════════════════════════════════════
-// Save OCR → Sheets
+// Scan Journal — журнал збережених чеків
 // ══════════════════════════════════════════════
+function journalKey() {
+  return 'scan_journal_' + (garageActiveId() || 'default');
+}
+
+function journalLoad() {
+  try { return JSON.parse(localStorage.getItem(journalKey()) || '[]'); }
+  catch { return []; }
+}
+
+function journalSave(list) {
+  localStorage.setItem(journalKey(), JSON.stringify(list));
+}
+
+function journalAdd(entry) {
+  const list = journalLoad();
+  list.unshift({ id: 'j_' + Date.now(), ...entry, savedAt: new Date().toISOString() });
+  journalSave(list);
+}
+
+function journalDelete(id) {
+  if (!confirm('Видалити цей запис з журналу?')) return;
+  journalSave(journalLoad().filter(j => j.id !== id));
+  renderScanJournal();
+}
+
+function journalClearAll() {
+  const count = journalLoad().length;
+  if (!confirm(`Видалити всі ${count} записів журналу? Це незворотньо.`)) return;
+  journalSave([]);
+  renderScanJournal();
+}
+
+function renderScanJournal() {
+  const container = document.getElementById('scan-journal');
+  if (!container) return;
+
+  const list = journalLoad();
+
+  if (!list.length) {
+    container.innerHTML = `
+      <div class="journal-header">
+        <span class="journal-title">Журнал чеків</span>
+        <span class="journal-count">0 записів</span>
+      </div>
+      <div class="journal-empty">📄 Збережені чеки з'являться тут після сканування</div>`;
+    return;
+  }
+
+  const totalCost = list.reduce((s,j) => s + (parseFloat(j.cost)||0), 0);
+
+  container.innerHTML = `
+    <div class="journal-header">
+      <span class="journal-title">Журнал чеків</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${totalCost > 0 ? `<span style="font-size:12px;color:var(--success);font-family:'JetBrains Mono',monospace;font-weight:600;">${totalCost.toLocaleString('uk')} грн</span>` : ''}
+        <span class="journal-count">${list.length} ${list.length===1?'запис':list.length<5?'записи':'записів'}</span>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--danger);border-color:rgba(224,82,82,0.3);" onclick="journalClearAll()">Очистити все</button>
+      </div>
+    </div>
+    ${list.map(j => renderJournalItem(j)).join('')}`;
+}
+
+function renderJournalItem(j) {
+  const dateStr = j.date
+    ? new Date(j.date+'T00:00:00').toLocaleDateString('uk',{day:'2-digit',month:'long',year:'numeric'})
+    : 'дата не вказана';
+  const kmStr  = j.mileage ? Number(j.mileage).toLocaleString('uk') + ' км' : '';
+  const cost   = j.cost ? Number(j.cost).toLocaleString('uk') + ' грн' : '';
+
+  const maintTags = (j.maintenance_works||[]).concat(j.maintenance_parts||[])
+    .slice(0,4).map(w => `<span class="journal-tag maint">${w}</span>`).join('');
+  const otherTags = (j.other_works||[])
+    .slice(0,3).map(w => `<span class="journal-tag other">${CAT_LABELS[w.category]||'📋'} ${w.name}</span>`).join('');
+  const allTags = maintTags + otherTags;
+
+  // Legacy format (old works/parts fields)
+  const legacyWorks = (j.works||'').split('\n').filter(Boolean)
+    .slice(0,4).map(w=>`<span class="journal-tag">${w}</span>`).join('');
+
+  const savedDate = j.savedAt
+    ? new Date(j.savedAt).toLocaleDateString('uk',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    : '';
+
+  return `
+    <div class="journal-item">
+      <div class="journal-item-top">
+        <div>
+          <div class="journal-item-station">${j.station || 'СТО не вказано'}</div>
+          <div class="journal-item-date">📅 ${dateStr}${savedDate ? `  ·  збережено ${savedDate}` : ''}</div>
+        </div>
+        <div class="journal-item-right">
+          ${cost ? `<div class="journal-item-cost">${cost}</div>` : ''}
+          ${kmStr ? `<div class="journal-item-km">📍 ${kmStr}</div>` : ''}
+        </div>
+      </div>
+      <div class="journal-item-works">
+        ${allTags || legacyWorks || '<span class="journal-tag" style="color:var(--text-dim)">роботи не розпізнано</span>'}
+      </div>
+      <div class="journal-item-actions">
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px;" onclick="journalDelete('${j.id}')">🗑 Видалити</button>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+// Save OCR → Sheets + Journal
 async function saveOcrToSheets() {
   const payload = {
     sheet:   'service_log',
@@ -2477,23 +2816,50 @@ async function saveOcrToSheets() {
       });
     });
     otherWorksSave(list);
-    window._pendingOtherWorks = null;
   }
 
-  if (!S.sheetsUrl) {
-    setStatus('ocr-save-status','success',
-      `Збережено!${pending?.works?.length ? ` ${pending.works.length} позарегл. роботи → "Інші роботи"` : ''}`);
-    clearOcr();
-    return;
-  }
+  // ── Зберігаємо регламентні роботи в профіль авто ──
+  // (галочки вже проставлені через fillMaintFromOcr — треба зафіксувати)
+  const maintSaved = MAINTENANCE_ITEMS.filter(item =>
+    document.getElementById('chk-' + item.id)?.checked
+  );
 
-  setStatus('ocr-save-status','loading','Зберігаємо...');
-  try {
-    await postToSheets(payload);
-    setStatus('ocr-save-status','success','Збережено в ServiceLogs!');
+  // ── Завжди зберігаємо в журнал ──
+  journalAdd({
+    date:               payload.date,
+    mileage:            payload.mileage,
+    station:            payload.station,
+    cost:               payload.cost,
+    works:              payload.works,
+    parts:              payload.parts,
+    maintenance_works:  window._lastOcrJson?.maintenance_works || [],
+    maintenance_parts:  window._lastOcrJson?.maintenance_parts || [],
+    other_works:        window._lastOcrJson?.other_works || [],
+    fileHash:           window._pendingFileHash || null,
+  });
+
+  // ── Зберігаємо стан гаражу (регламент + все інше) ──
+  garageSaveCurrentCar();
+
+  window._pendingOtherWorks = null;
+  window._lastOcrJson       = null;
+  window._pendingFileHash   = null;
+
+  // Повідомлення з деталями що збережено
+  const parts = ['журнал ✓'];
+  if (maintSaved.length) parts.push(`регламент: ${maintSaved.length} робіт ✓`);
+  if (pending?.works?.length) parts.push(`інші роботи: ${pending.works.length} ✓`);
+
+  setStatus('ocr-save-status','success', 'Збережено → ' + parts.join(' · '));
+  setTimeout(() => {
     clearOcr();
-  } catch(e) {
-    setStatus('ocr-save-status','error','Помилка збереження.');
+    renderScanJournal();
+  }, 1500);
+
+  // Опціонально — Google Sheets
+  if (S.sheetsUrl) {
+    try { await postToSheets(payload); }
+    catch(e) { console.warn('Sheets sync failed:', e); }
   }
 }
 
@@ -2764,6 +3130,13 @@ function otherWorksSave(list) {
   localStorage.setItem('other_works_' + id, JSON.stringify(list));
 }
 
+function otherWorksClearAll() {
+  const count = otherWorksLoad().length;
+  if (!confirm(`Видалити всі ${count} записів з "Інших робіт"? Це незворотньо.`)) return;
+  otherWorksSave([]);
+  renderOtherWorks();
+}
+
 function addOtherWork() {
   const name     = document.getElementById('other-name').value.trim();
   const category = document.getElementById('other-category').value;
@@ -2869,13 +3242,17 @@ function renderOtherWorks() {
     return;
   }
 
-  // Total cost
+  // Total cost + clear all header
   const total = list.reduce((sum, w) => sum + (parseFloat(w.cost) || 0), 0);
-  const totalHtml = total > 0 ? `
-    <div class="other-total-bar">
-      <span style="color:var(--text-muted);">Загальні витрати на позарегламентні роботи</span>
-      <span class="other-total-val">${total.toLocaleString('uk')} грн</span>
-    </div>` : '';
+  const totalHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);">Всі записи</span>
+        <span style="font-size:11px;color:var(--text-dim);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 9px;">${list.length}</span>
+        ${total > 0 ? `<span style="font-size:12px;color:var(--success);font-family:'JetBrains Mono',monospace;font-weight:600;">${total.toLocaleString('uk')} грн</span>` : ''}
+      </div>
+      <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--danger);border-color:rgba(224,82,82,0.3);" onclick="otherWorksClearAll()">Очистити все</button>
+    </div>`;
 
   // Group by category
   const groups = {};
