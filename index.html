@@ -2172,6 +2172,76 @@ function handleFile(e, ctx) {
   if (file) processFile(file, ctx);
 }
 
+// ── Надійний парсер JSON від Claude ──
+function safeParseJson(raw) {
+  if (!raw) return null;
+
+  // 1. Прибираємо markdown блоки
+  let s = raw.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+
+  // 2. Пряма спроба
+  try { return JSON.parse(s); } catch(e) {}
+
+  // 3. Витягуємо перший JSON-об'єкт з тексту
+  const start = s.indexOf('{');
+  if (start === -1) return null;
+  s = s.slice(start);
+
+  // 4. Знаходимо де закінчується JSON — по балансу дужок
+  // (правильно обробляє escaped символи і рядки)
+  let depth = 0;
+  let inStr = false;
+  let escape = false;
+  let end = -1;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inStr) { escape = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') { depth--; if (depth === 0) { end = i; break; } }
+  }
+
+  // 5. Якщо знайшли кінець — парсимо точний шматок
+  if (end !== -1) {
+    try { return JSON.parse(s.slice(0, end + 1)); } catch(e) {}
+  }
+
+  // 6. Відповідь обрізана — спробуємо закрити відкриті структури
+  // Використовуємо стек замість простого підрахунку
+  const stack = [];
+  inStr = false; escape = false;
+  let lastGoodPos = 0;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inStr) { escape = true; continue; }
+    if (ch === '"') {
+      inStr = !inStr;
+      if (!inStr) lastGoodPos = i; // закрили рядок
+      continue;
+    }
+    if (inStr) continue;
+    if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') {
+      stack.pop();
+      lastGoodPos = i;
+    }
+  }
+
+  // Якщо рядок не закритий — обрізаємо до останньої закритої позиції
+  let truncated = inStr ? s.slice(0, lastGoodPos + 1) : s;
+
+  // Закриваємо незакриті структури зі стеку
+  const closing = stack.reverse().map(c => c === '{' ? '}' : ']').join('');
+  truncated += closing;
+
+  try { return JSON.parse(truncated); } catch(e) {}
+
+  return null;
+}
+
 async function processFile(file, ctx) {
   const statusId = ctx === 'scan' ? 'scan-status' : 'maint-ocr-status';
 
@@ -2198,7 +2268,7 @@ async function processFile(file, ctx) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
+        max_tokens: 4096,
         messages: [{
           role: 'user',
           content: [
@@ -2212,27 +2282,21 @@ async function processFile(file, ctx) {
             },
             {
               type: 'text',
-              text: `Проаналізуй цей документ (чек, акт виконаних робіт або сервісна книжка автомобіля).
+              text: `Проаналізуй документ (чек або акт виконаних робіт СТО).
 
-Класифікуй кожну роботу/запчастину на два типи:
-- "maintenance": регламентні роботи (масло, фільтри, рідини, свічки, ремінь ГРМ)
-- "other": все інше (амортизатори, підшипники, гума, диски, акумулятор, кузов, електрика, кондиціонер, будь-які ремонтні роботи)
+Поверни ТІЛЬКИ валідний JSON без жодних пояснень, коментарів чи markdown:
+{"date":"YYYY-MM-DD","mileage":12345,"station":"назва","cost":1500,"currency":"UAH","maintenance_works":["роботи"],"maintenance_parts":["запчастини"],"other_works":[{"name":"назва","category":"suspension"}]}
 
-Для типу "other" також визнач категорію: suspension/tyres/brakes/engine/electrics/body/ac/battery/other
-
-Поверни ТІЛЬКИ JSON, без пояснень, без markdown-блоків:
-{
-  "date": "YYYY-MM-DD або null",
-  "mileage": число або null,
-  "station": "назва СТО або null",
-  "cost": число або null,
-  "currency": "UAH або інша валюта",
-  "maintenance_works": ["тільки регламентні роботи"],
-  "maintenance_parts": ["тільки регламентні запчастини"],
-  "other_works": [
-    {"name": "назва роботи або запчастини", "category": "suspension|tyres|brakes|engine|electrics|body|ac|battery|other"}
-  ]
-}`
+Правила:
+- date: формат YYYY-MM-DD або null якщо немає
+- mileage: число кілометрів або null
+- station: назва СТО або null
+- cost: загальна сума числом або null
+- maintenance_works: регламентні роботи (масло, фільтри, рідини, свічки, ремінь ГРМ)
+- maintenance_parts: регламентні запчастини
+- other_works: решта робіт з категорією (suspension/tyres/brakes/engine/electrics/body/ac/battery/other)
+- Порожні масиви якщо нічого немає: []
+- Всі рядки в подвійних лапках, без апострофів`
             }
           ]
         }]
@@ -2247,35 +2311,9 @@ async function processFile(file, ctx) {
     const data = await response.json();
     const raw = data.content[0].text.trim();
 
-    // Robust JSON extraction — handle truncated or wrapped responses
-    let json;
-    try {
-      // Try direct parse first
-      const cleaned = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
-      json = JSON.parse(cleaned);
-    } catch(e1) {
-      // Try to extract JSON object from text
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          json = JSON.parse(match[0]);
-        } catch(e2) {
-          // Try to fix truncated JSON by closing open strings/arrays/objects
-          let fixed = match[0];
-          // Count unclosed brackets
-          let opens = (fixed.match(/\[/g)||[]).length - (fixed.match(/\]/g)||[]).length;
-          let openBraces = (fixed.match(/\{/g)||[]).length - (fixed.match(/\}/g)||[]).length;
-          // Close any unterminated string
-          if ((fixed.match(/"/g)||[]).length % 2 !== 0) fixed += '"';
-          while (opens-- > 0) fixed += ']';
-          while (openBraces-- > 0) fixed += '}';
-          try { json = JSON.parse(fixed); }
-          catch(e3) { throw new Error('Не вдалося розпізнати відповідь. Спробуйте ще раз.'); }
-        }
-      } else {
-        throw new Error('Claude не повернув JSON. Спробуйте ще раз.');
-      }
-    }
+    // ── Надійний парсер JSON ──
+    const json = safeParseJson(raw);
+    if (!json) throw new Error('Не вдалося розпізнати відповідь від Claude. Спробуйте ще раз або використайте інший файл.');
 
     clearStatus(statusId);
 
