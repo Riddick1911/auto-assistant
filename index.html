@@ -825,6 +825,117 @@
     .maint-row .maint-label { grid-column: 1 / -1; }
     .ocr-grid { grid-template-columns: 1fr; }
   }
+  /* ── Other Works ── */
+  .other-group-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--text-dim);
+    margin: 20px 0 8px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .other-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+    transition: border-color 0.15s;
+  }
+  .other-item:hover { border-color: var(--border-light); }
+
+  .other-item-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .other-item-name {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    flex: 1; line-height: 1.3;
+  }
+
+  /* Date + km badge — always shown */
+  .other-item-when {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+  }
+
+  .other-when-date, .other-when-km {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .other-when-date.empty, .other-when-km.empty {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .other-when-sep { color: var(--border-light); font-size: 11px; }
+
+  .other-when-km {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  .other-item-meta {
+    font-size: 12px; color: var(--text-dim);
+    display: flex; flex-wrap: wrap; gap: 10px;
+  }
+
+  .other-meta-cost {
+    color: var(--success) !important;
+    font-weight: 500;
+  }
+
+  .other-item-notes {
+    font-size: 12px; color: var(--text-muted);
+    margin-top: 6px; font-style: italic;
+  }
+
+  .other-item-actions {
+    display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+  }
+
+  .other-btn-edit, .other-btn-del {
+    background: none; border: none; cursor: pointer;
+    padding: 4px 6px; border-radius: 5px;
+    font-size: 14px; transition: background 0.15s;
+  }
+  .other-btn-edit:hover { background: var(--surface2); }
+  .other-btn-del:hover  { background: rgba(224,82,82,0.1); }
+
+  .other-empty {
+    text-align: center; padding: 48px 20px;
+    color: var(--text-dim); font-size: 14px;
+  }
+  .other-empty-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.4; }
+
+  .other-total-bar {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; font-size: 13px;
+  }
+  .other-total-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; font-size: 15px; color: var(--text);
+  }
+
   /* ── Garage (multi-car) ── */
   .garage-list {
     padding: 0 12px 12px;
@@ -891,6 +1002,12 @@
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
         </svg>
         Регламент ТО
+      </div>
+      <div class="nav-item" onclick="goto('other')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        Інші роботи
       </div>
       <div class="nav-item" onclick="goto('scan')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1143,6 +1260,69 @@
     </div>
 
 
+    <!-- PAGE OTHER: Інші роботи -->
+    <div class="page" id="page-other">
+      <div class="page-header">
+        <div class="page-title">Інші роботи</div>
+        <div class="page-sub">Позарегламентні роботи — амортизатори, гума, кузов, електрика тощо</div>
+      </div>
+
+      <!-- Форма додавання -->
+      <div class="card" id="other-form-card">
+        <div class="card-title" id="other-form-title">Додати роботу</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Назва роботи / запчастини</label>
+            <input id="other-name" placeholder="Амортизатори задні (2 шт.)" />
+          </div>
+          <div class="field">
+            <label>Категорія</label>
+            <select id="other-category">
+              <option value="suspension">🔩 Підвіска</option>
+              <option value="tyres">🛞 Шини / диски</option>
+              <option value="brakes">🛑 Гальма</option>
+              <option value="engine">⚙️ Двигун</option>
+              <option value="electrics">⚡ Електрика</option>
+              <option value="body">🚗 Кузов</option>
+              <option value="ac">❄️ Кондиціонер</option>
+              <option value="battery">🔋 Акумулятор</option>
+              <option value="other">📋 Інше</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Дата виконання</label>
+            <input id="other-date" type="date" />
+            <div class="hint">Якщо невідома — залиш порожнім</div>
+          </div>
+          <div class="field">
+            <label>Пробіг (км)</label>
+            <input id="other-mileage" type="number" placeholder="87500" style="font-family:'JetBrains Mono',monospace;" />
+            <div class="hint" id="other-mileage-hint"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Нотатки</label>
+          <textarea id="other-notes" rows="2" placeholder="Деталі, марка запчастини, де зроблено, гарантія..."></textarea>
+        </div>
+        <!-- Hidden fields kept for compatibility -->
+        <input id="other-cost" type="hidden" value="" />
+        <input id="other-station" type="hidden" value="" />
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <button class="btn btn-primary" onclick="addOtherWork()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Додати
+          </button>
+          <button class="btn btn-ghost" id="other-cancel-btn" onclick="cancelEditOther()" style="display:none;">Скасувати</button>
+        </div>
+        <div class="status-bar" id="other-status"></div>
+      </div>
+
+      <!-- Список робіт -->
+      <div id="other-works-list"></div>
+    </div>
+
     <!-- PAGE 3: Scan -->
     <div class="page" id="page-scan">
       <div class="page-header">
@@ -1310,10 +1490,11 @@ function goto(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  const idx = ['car','dash','maint','scan','settings'].indexOf(page);
+  const idx = ['car','dash','maint','other','scan','settings'].indexOf(page);
   document.querySelectorAll('.nav-item')[idx].classList.add('active');
   if (page === 'maint') renderMaintList();
-  if (page === 'dash') renderDashboard();
+  if (page === 'dash')  renderDashboard();
+  if (page === 'other') renderOtherWorks();
 }
 
 // ══════════════════════════════════════════════
@@ -1383,7 +1564,7 @@ const GENERATIONS = {
       {code:'Mk4',  label:'Mk4 (NX) · 2020–',       from:2020, to:2030, wikiQuery:'Skoda Octavia Mk4'},
       {code:'Mk3',  label:'Mk3 (5E) · 2012–2020',   from:2012, to:2020, wikiQuery:'Skoda Octavia Mk3'},
       {code:'Mk2',  label:'Mk2 (1Z) · 2004–2013',   from:2004, to:2013, wikiQuery:'Skoda Octavia 1Z'},
-      {code:'Tour', label:'Tour (1U) · 1996–2011',   from:1996, to:2011, wikiQuery:'Skoda Octavia Tour'},
+      {code:'Tour', label:'Tour (1U) · 1996–2011',   from:1996, to:2011, wikiQuery:'Skoda Octavia Combi 1U Tour wagon'},
     ],
     'FABIA':[
       {code:'Mk4',  label:'Mk4 · 2021–',             from:2021, to:2030, wikiQuery:'Skoda Fabia Mk4'},
@@ -1918,15 +2099,25 @@ async function processFile(file, ctx) {
             {
               type: 'text',
               text: `Проаналізуй цей документ (чек, акт виконаних робіт або сервісна книжка автомобіля).
+
+Класифікуй кожну роботу/запчастину на два типи:
+- "maintenance": регламентні роботи (масло, фільтри, рідини, свічки, ремінь ГРМ)
+- "other": все інше (амортизатори, підшипники, гума, диски, акумулятор, кузов, електрика, кондиціонер, будь-які ремонтні роботи)
+
+Для типу "other" також визнач категорію: suspension/tyres/brakes/engine/electrics/body/ac/battery/other
+
 Поверни ТІЛЬКИ JSON, без пояснень, без markdown-блоків:
 {
   "date": "YYYY-MM-DD або null",
   "mileage": число або null,
   "station": "назва СТО або null",
-  "works": ["список виконаних робіт"],
-  "parts": ["список замінених запчастин"],
   "cost": число або null,
-  "currency": "UAH або інша валюта"
+  "currency": "UAH або інша валюта",
+  "maintenance_works": ["тільки регламентні роботи"],
+  "maintenance_parts": ["тільки регламентні запчастини"],
+  "other_works": [
+    {"name": "назва роботи або запчастини", "category": "suspension|tyres|brakes|engine|electrics|body|ac|battery|other"}
+  ]
 }`
             }
           ]
@@ -1970,16 +2161,55 @@ function fileToBase64(file) {
 // OCR Preview
 // ══════════════════════════════════════════════
 function fillOcrPreview(d) {
-  if (d.date) document.getElementById('ocr-date').value = d.date;
+  if (d.date)    document.getElementById('ocr-date').value    = d.date;
   if (d.mileage) document.getElementById('ocr-mileage').value = d.mileage;
   if (d.station) document.getElementById('ocr-station').value = d.station;
-  if (d.cost) document.getElementById('ocr-cost').value = d.cost;
+  if (d.cost)    document.getElementById('ocr-cost').value    = d.cost;
 
-  const works = d.works || [];
+  // Підтримка нового формату (classified) і старого (works/parts)
+  const maintWorks = d.maintenance_works || d.works || [];
+  const maintParts = d.maintenance_parts || d.parts || [];
+  const otherWorks = d.other_works || [];
+
+  // Теги регламентних робіт
+  const allMaint = [...maintWorks, ...maintParts];
   document.getElementById('ocr-works-tags').innerHTML =
-    works.map(w => `<span class="work-tag">${w}</span>`).join('');
-  document.getElementById('ocr-works-raw').value = works.join('\n');
-  document.getElementById('ocr-parts-raw').value = (d.parts || []).join('\n');
+    allMaint.map(w => `<span class="work-tag">${w}</span>`).join('') +
+    otherWorks.map(w => `<span class="work-tag" style="border-color:rgba(245,166,35,0.4);color:var(--warning);background:rgba(245,166,35,0.08);">${CAT_LABELS[w.category]||'📋'} ${w.name}</span>`).join('');
+
+  document.getElementById('ocr-works-raw').value = allMaint.join('\n');
+  document.getElementById('ocr-parts-raw').value = otherWorks.map(w=>w.name).join('\n');
+
+  // Зберігаємо other_works для подальшого використання
+  window._pendingOtherWorks = otherWorks.length > 0 ? { works: otherWorks, date: d.date, mileage: d.mileage, station: d.station } : null;
+
+  // Показуємо блок "інших робіт" якщо є
+  const existingOtherBlock = document.getElementById('ocr-other-block');
+  if (existingOtherBlock) existingOtherBlock.remove();
+
+  if (otherWorks.length > 0) {
+    const block = document.createElement('div');
+    block.id = 'ocr-other-block';
+    block.style.cssText = 'margin-top:14px; padding:14px; background:rgba(245,166,35,0.06); border:1px solid rgba(245,166,35,0.25); border-radius:8px;';
+    block.innerHTML = `
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--warning);margin-bottom:10px;">
+        🔧 Позарегламентні роботи (${otherWorks.length})
+      </div>
+      ${otherWorks.map(w=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+          <span style="font-size:13px;">${CAT_LABELS[w.category]||'📋'}</span>
+          <span style="font-size:13px;color:var(--text);flex:1;">${w.name}</span>
+          <span style="font-size:11px;color:var(--text-dim);">${w.category||'other'}</span>
+        </div>`).join('')}
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+        <label class="checkbox-label" style="font-size:13px;">
+          <input type="checkbox" id="ocr-save-other" checked />
+          <span class="checkbox-box"></span>
+          <span>Зберегти в "Інші роботи" автоматично</span>
+        </label>
+      </div>`;
+    document.getElementById('ocr-preview').appendChild(block);
+  }
 
   document.getElementById('ocr-preview').classList.add('visible');
 }
@@ -2027,6 +2257,9 @@ function clearOcr() {
   ['ocr-date','ocr-mileage','ocr-station','ocr-cost','ocr-works-raw','ocr-parts-raw']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('ocr-works-tags').innerHTML = '';
+  const ob = document.getElementById('ocr-other-block');
+  if (ob) ob.remove();
+  window._pendingOtherWorks = null;
 }
 
 // ══════════════════════════════════════════════
@@ -2044,8 +2277,32 @@ async function saveOcrToSheets() {
     cost:    document.getElementById('ocr-cost').value,
   };
 
+  // Зберігаємо "Інші роботи" автоматично якщо є і прапорець стоїть
+  const saveOther = document.getElementById('ocr-save-other');
+  const pending   = window._pendingOtherWorks;
+
+  if (pending && saveOther?.checked && pending.works.length > 0) {
+    const list = otherWorksLoad();
+    pending.works.forEach(w => {
+      list.unshift({
+        id:       'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+        name:     w.name,
+        category: w.category || 'other',
+        date:     pending.date || payload.date || '',
+        mileage:  pending.mileage || payload.mileage || '',
+        cost:     '',
+        station:  pending.station || payload.station || '',
+        notes:    'Додано автоматично зі сканування чека',
+      });
+    });
+    otherWorksSave(list);
+    window._pendingOtherWorks = null;
+  }
+
   if (!S.sheetsUrl) {
-    setStatus('ocr-save-status','success','Дані готові. Додайте URL таблиці в Налаштуваннях для збереження.');
+    setStatus('ocr-save-status','success',
+      `Збережено!${pending?.works?.length ? ` ${pending.works.length} позарегл. роботи → "Інші роботи"` : ''}`);
+    clearOcr();
     return;
   }
 
@@ -2053,6 +2310,7 @@ async function saveOcrToSheets() {
   try {
     await postToSheets(payload);
     setStatus('ocr-save-status','success','Збережено в ServiceLogs!');
+    clearOcr();
   } catch(e) {
     setStatus('ocr-save-status','error','Помилка збереження.');
   }
@@ -2290,6 +2548,209 @@ function renderDashItem(item) {
         <span>${item.nextMileage?.toLocaleString('uk')} км</span>
       </div>
     </div>`;
+}
+
+// ══════════════════════════════════════════════
+// Other Works — позарегламентні роботи
+// ══════════════════════════════════════════════
+
+const CAT_LABELS = {
+  suspension: '🔩 Підвіска',
+  tyres:      '🛞 Шини / диски',
+  brakes:     '🛑 Гальма',
+  engine:     '⚙️ Двигун',
+  electrics:  '⚡ Електрика',
+  body:       '🚗 Кузов',
+  ac:         '❄️ Кондиціонер',
+  battery:    '🔋 Акумулятор',
+  other:      '📋 Інше',
+};
+
+let _editingOtherId = null;
+
+function otherWorksLoad() {
+  const id = garageActiveId();
+  if (!id) return [];
+  try {
+    const raw = localStorage.getItem('other_works_' + id);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function otherWorksSave(list) {
+  const id = garageActiveId();
+  if (!id) return;
+  localStorage.setItem('other_works_' + id, JSON.stringify(list));
+}
+
+function addOtherWork() {
+  const name     = document.getElementById('other-name').value.trim();
+  const category = document.getElementById('other-category').value;
+  const date     = document.getElementById('other-date').value;
+  const mileage  = document.getElementById('other-mileage').value;
+  const cost     = document.getElementById('other-cost').value;
+  const station  = document.getElementById('other-station').value.trim();
+  const notes    = document.getElementById('other-notes').value.trim();
+
+  if (!name) { setStatus('other-status','error','Введіть назву роботи'); return; }
+
+  const list = otherWorksLoad();
+
+  if (_editingOtherId) {
+    // Edit mode
+    const idx = list.findIndex(w => w.id === _editingOtherId);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], name, category, date, mileage, cost, station, notes };
+    }
+    _editingOtherId = null;
+    document.getElementById('other-form-title').textContent = 'Додати роботу';
+    document.getElementById('other-cancel-btn').style.display = 'none';
+    document.querySelector('#other-form-card .btn-primary').innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Додати';
+  } else {
+    list.unshift({ id: 'w_' + Date.now(), name, category, date, mileage, cost, station, notes });
+  }
+
+  otherWorksSave(list);
+  clearOtherForm();
+  setStatus('other-status','success','Збережено');
+  setTimeout(() => clearStatus('other-status'), 1500);
+  renderOtherWorks();
+}
+
+function clearOtherForm() {
+  ['other-name','other-date','other-mileage','other-notes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('other-category').value = 'suspension';
+  document.getElementById('other-date').value = new Date().toISOString().split('T')[0];
+}
+
+function cancelEditOther() {
+  _editingOtherId = null;
+  clearOtherForm();
+  document.getElementById('other-form-title').textContent = 'Додати роботу';
+  document.getElementById('other-cancel-btn').style.display = 'none';
+  document.querySelector('#other-form-card .btn-primary').innerHTML =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Додати';
+}
+
+function editOtherWork(id) {
+  const list = otherWorksLoad();
+  const work = list.find(w => w.id === id);
+  if (!work) return;
+  _editingOtherId = id;
+  document.getElementById('other-name').value     = work.name || '';
+  document.getElementById('other-category').value = work.category || 'other';
+  document.getElementById('other-date').value     = work.date || '';
+  document.getElementById('other-mileage').value  = work.mileage || '';
+  document.getElementById('other-notes').value    = work.notes || '';
+  document.getElementById('other-form-title').textContent = 'Редагувати запис';
+  document.getElementById('other-cancel-btn').style.display = 'inline-flex';
+  document.querySelector('#other-form-card .btn-primary').innerHTML = '✓ Зберегти зміни';
+  document.getElementById('other-form-card').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function deleteOtherWork(id) {
+  const list = otherWorksLoad();
+  const work = list.find(w => w.id === id);
+  if (!confirm(`Видалити "${work?.name || 'цей запис'}"?`)) return;
+  otherWorksSave(list.filter(w => w.id !== id));
+  renderOtherWorks();
+}
+
+function renderOtherWorks() {
+  // Set today's date in form if empty
+  const dateEl = document.getElementById('other-date');
+  if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+
+  // Show current mileage hint
+  const curMileage = document.getElementById('car-mileage')?.value || S.car?.mileage;
+  const hintEl = document.getElementById('other-mileage-hint');
+  if (hintEl && curMileage) {
+    hintEl.textContent = `Поточний пробіг авто: ${Number(curMileage).toLocaleString('uk')} км`;
+    // Pre-fill mileage if field is empty and not in edit mode
+    const mileageEl = document.getElementById('other-mileage');
+    if (mileageEl && !mileageEl.value && !_editingOtherId) {
+      mileageEl.value = curMileage;
+    }
+  }
+
+  const list = otherWorksLoad();
+  const container = document.getElementById('other-works-list');
+  if (!container) return;
+
+  if (!list.length) {
+    container.innerHTML = `
+      <div class="other-empty">
+        <div class="other-empty-icon">🔧</div>
+        Ще немає жодного запису.<br>Додайте першу роботу вище.
+      </div>`;
+    return;
+  }
+
+  // Total cost
+  const total = list.reduce((sum, w) => sum + (parseFloat(w.cost) || 0), 0);
+  const totalHtml = total > 0 ? `
+    <div class="other-total-bar">
+      <span style="color:var(--text-muted);">Загальні витрати на позарегламентні роботи</span>
+      <span class="other-total-val">${total.toLocaleString('uk')} грн</span>
+    </div>` : '';
+
+  // Group by category
+  const groups = {};
+  list.forEach(w => {
+    const cat = w.category || 'other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(w);
+  });
+
+  const groupsHtml = Object.entries(groups).map(([cat, works]) => {
+    // Sort by date descending within group
+    works.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+    const rows = works.map(w => {
+      const dateStr    = w.date
+        ? new Date(w.date + 'T00:00:00').toLocaleDateString('uk',{day:'2-digit',month:'long',year:'numeric'})
+        : null;
+      const mileageStr = w.mileage ? Number(w.mileage).toLocaleString('uk') + ' км' : null;
+      const costStr    = w.cost ? Number(w.cost).toLocaleString('uk') + ' грн' : null;
+
+      // Date+mileage badge — always visible
+      const dateBadge = `
+        <div class="other-item-when">
+          <span class="other-when-date ${!dateStr ? 'empty' : ''}">
+            📅 ${dateStr || 'не зазначено'}
+          </span>
+          <span class="other-when-sep">·</span>
+          <span class="other-when-km ${!mileageStr ? 'empty' : ''}">
+            📍 ${mileageStr || 'не зазначено'}
+          </span>
+        </div>`;
+
+      return `
+        <div class="other-item">
+          <div style="flex:1; min-width:0;">
+            <div class="other-item-header-row">
+              <div class="other-item-name">${w.name}</div>
+              <div class="other-item-actions">
+                <button class="other-btn-edit" onclick="editOtherWork('${w.id}')" title="Редагувати">✏️</button>
+                <button class="other-btn-del"  onclick="deleteOtherWork('${w.id}')" title="Видалити">🗑</button>
+              </div>
+            </div>
+            ${dateBadge}
+            <div class="other-item-meta">
+              ${costStr   ? `<span class="other-meta-cost">💰 ${costStr}</span>` : ''}
+              ${w.station ? `<span>🏪 ${w.station}</span>` : ''}
+            </div>
+            ${w.notes ? `<div class="other-item-notes">${w.notes}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    return `<div class="other-group-title">${CAT_LABELS[cat] || cat}</div>${rows}`;
+  }).join('');
+
+  container.innerHTML = totalHtml + groupsHtml;
 }
 
 // ══════════════════════════════════════════════
