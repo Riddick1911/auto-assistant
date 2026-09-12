@@ -2535,16 +2535,21 @@ async function processFile(file, ctx) {
 Поверни ТІЛЬКИ валідний JSON без жодних пояснень, коментарів чи markdown:
 {"date":"YYYY-MM-DD","mileage":12345,"station":"назва","cost":1500,"currency":"UAH","maintenance_works":["роботи"],"maintenance_parts":["запчастини"],"other_works":[{"name":"назва","category":"suspension"}]}
 
-Правила:
-- date: формат YYYY-MM-DD або null якщо немає
-- mileage: число кілометрів або null
-- station: назва СТО або null
+Правила класифікації:
+- maintenance_works/maintenance_parts: ТІЛЬКИ регламентні роботи:
+  заміна моторної оливи, заміна масляного фільтра, заміна повітряного фільтра,
+  заміна фільтра салону, заміна паливного фільтра, заміна гальмівної рідини,
+  заміна антифризу/охолоджуючої рідини, заміна оливи КПП,
+  заміна свічок запалювання, заміна ременя/ланцюга ГРМ,
+  заміна гальмівних колодок, заміна гальмівних дисків
+- other_works: ВСЕ ІНШЕ (підвіска, кузов, електрика, слюсарні роботи, діагностика тощо)
+  з категорією: suspension/tyres/brakes/engine/electrics/body/ac/battery/other
+- date: формат YYYY-MM-DD або null
+- mileage: число км або null
+- station: назва СТО або null  
 - cost: загальна сума числом або null
-- maintenance_works: регламентні роботи (масло, фільтри, рідини, свічки, ремінь ГРМ)
-- maintenance_parts: регламентні запчастини
-- other_works: решта робіт з категорією (suspension/tyres/brakes/engine/electrics/body/ac/battery/other)
 - Порожні масиви якщо нічого немає: []
-- Всі рядки в подвійних лапках, без апострофів`
+- Всі рядки в подвійних лапках`
             }
           ]
         }]
@@ -2667,51 +2672,55 @@ function fillOcrPreview(d) {
 }
 
 function fillMaintFromOcr(d, silent = false) {
-  // Використовуємо нові класифіковані поля (або старі для сумісності)
-  const maintText = [
+  // Збираємо ВЕСЬ текст з усіх полів — Claude міг помилково класифікувати
+  const allText = [
     ...(d.maintenance_works || []),
     ...(d.maintenance_parts || []),
-    ...(d.works || []),
-    ...(d.parts || []),
+    ...(d.other_works || []).map(w => w.name || ''),
+    ...(d.works  || []),
+    ...(d.parts  || []),
   ].join(' ').toLowerCase();
 
   const MATCHES = {
-    engine_oil:   /моторн|масл|oil change|олива|мастил|engine oil/,
-    oil_filter:   /масл.*фільтр|oil filter|оливний фільтр|фільтр.*масл/,
+    engine_oil:   /моторн.*олив|масл.*олив|олива.*двиг|engine oil|заміна.*олив|oil change/,
+    oil_filter:   /масл.*фільтр|оливн.*фільтр|oil filter|фільтр.*масл|фільтр.*олив/,
     air_filter:   /повітр.*фільтр|air filter|фільтр.*повітр/,
-    cabin_filter: /салон.*фільтр|cabin filter|фільтр.*салон|пилов/,
-    fuel_filter:  /паливн.*фільтр|fuel filter|фільтр.*паливн/,
-    brake_fluid:  /гальм.*рідин|brake fluid|тормозн/,
-    coolant:      /антифриз|coolant|охолоджуваль|тосол/,
-    gearbox_oil:  /олива.*кпп|кпп.*олива|трансміс|gearbox|transmission oil/,
-    timing_belt:  /грм|ремінь грм|timing belt|ланцюг грм/,
-    spark_plugs:  /свічк|spark plug|запалюван/,
-    brake_pads_f: /колодк.*пер|передн.*колодк|front.*pad|brake pad/,
-    brake_pads_r: /колодк.*зад|задн.*колодк|rear.*pad/,
+    cabin_filter: /салон.*фільтр|cabin filter|фільтр.*салон|пилов.*фільтр/,
+    fuel_filter:  /паливн.*фільтр|fuel filter|фільтр.*паливн|паливний фільтр/,
+    brake_fluid:  /гальм.*рідин|brake fluid|тормозн.*рідин/,
+    coolant:      /антифриз|coolant|охолоджуваль|тосол|охолодж.*рідин/,
+    gearbox_oil:  /олива.*кпп|кпп.*олива|трансміс.*олив|gearbox|transmission oil/,
+    timing_belt:  /ремінь.*грм|грм.*ремінь|timing belt|ланцюг.*грм|грм.*ланцюг/,
+    spark_plugs:  /свічк.*запал|spark plug|запалюван.*свічк/,
+    brake_pads_f: /колодк.*пер|передн.*колодк|front.*brake pad|передні.*колодк/,
+    brake_pads_r: /колодк.*зад|задн.*колодк|rear.*brake pad|задні.*колодк/,
   };
 
   let found = 0;
+  const foundNames = [];
+
   Object.entries(MATCHES).forEach(([id, rx]) => {
-    if (rx.test(maintText)) {
+    if (rx.test(allText)) {
       const chk = document.getElementById('chk-' + id);
-      if (chk) {
+      if (chk && !chk.checked) { // не перезаписуємо вже виставлені
         chk.checked = true;
         toggleMaintRow(id);
         if (d.mileage) {
           const km = document.getElementById('km-' + id);
           if (km) { km.value = d.mileage; updateDelta(id); }
         }
+        const label = MAINT_INTERVALS[id]?.label || id;
+        foundNames.push(label);
         found++;
       }
     }
   });
 
   if (!silent) {
-    // Зберігаємо проставлені галочки
     garageSaveCurrentCar();
     setStatus('maint-ocr-status', found ? 'success' : 'error',
       found
-        ? `Знайдено ${found} регламентних робіт → проставлено і збережено ✓`
+        ? `✓ Знайдено і збережено: ${foundNames.join(', ')}`
         : 'Регламентних робіт не знайдено. Заповніть вручну.'
     );
   }
